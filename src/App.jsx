@@ -659,6 +659,10 @@ function AccountView({ user, handleLogout }) {
 
 function CheckoutView({ cart, cartTotal, navigate, setCart, showToast }) {
   
+  const [checkoutStep, setCheckoutStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showIntegrationModal, setShowIntegrationModal] = useState(false);
+
   if (cart.length === 0) {
     return (
       <div className="max-w-xl mx-auto px-6 py-20 text-center">
@@ -670,48 +674,195 @@ function CheckoutView({ cart, cartTotal, navigate, setCart, showToast }) {
     );
   }
 
-  // To test Stripe without a real backend, we use a pre-configured pricing table.
-  // In a real application, you would generate a Checkout Session on your server
-  // and pass the session ID to the client, or use Payment Intents.
-  // For this standalone demo, we will embed a Stripe Pricing Table as requested
-  // for a "real portal" feel, although normally e-commerce uses standard Checkout.
-  // We'll provide a generic Stripe checkout component since we can't create dynamic
-  // sessions on the fly without a backend.
+  const handleProcessPayment = async (e) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    
+    // ============================================================================
+    // 🛠️ HANDOVER READY CODE: STRIPE CHECKOUT INTEGRATION
+    // ============================================================================
+    // To make this live, your backend developer will uncomment the code below.
+    // It sends the cart data to your server (Node.js, Python, Supabase Edge Function, etc.)
+    // which securely creates a Stripe Checkout Session and returns a URL.
+    // ============================================================================
+    
+    /*
+    try {
+      const response = await fetch('https://your-api-domain.com/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: cart,
+          customerEmail: document.getElementById('c-email').value,
+          shippingAddress: {
+            line1: document.getElementById('address').value,
+            city: document.getElementById('city').value,
+            postal_code: document.getElementById('zip').value,
+          }
+        }),
+      });
+
+      if (!response.ok) throw new Error('Network response was not ok');
+      
+      const session = await response.json();
+      
+      // Redirects the user to the REAL Stripe secure payment portal
+      window.location.href = session.url; 
+      
+    } catch (error) {
+      console.error("Error creating checkout session:", error);
+      showToast("Payment service temporarily unavailable.");
+      setIsProcessing(false);
+    }
+    */
+
+    // --- DEMONSTRATION MODE ONLY ---
+    // Simulating the backend request delay so you can see the loading state
+    setTimeout(() => {
+      setIsProcessing(false);
+      setShowIntegrationModal(true); // Show explanation instead of redirecting
+    }, 1500);
+  };
   
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-in">
+    <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-in relative">
+      
+      {/* HANDOVER INTEGRATION MODAL */}
+      {showIntegrationModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowIntegrationModal(false)} />
+          <div className="bg-white p-8 rounded-sm shadow-2xl relative max-w-lg w-full text-center animate-fade-in">
+            <div className="w-16 h-16 bg-blue-50 text-[#635BFF] flex items-center justify-center rounded-full mx-auto mb-6">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            </div>
+            <h3 className="text-2xl font-bold mb-4">Integration Ready</h3>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              In a live production environment, clicking that button instantly redirects the user to your secure <strong>Stripe Hosted Checkout</strong> page (checkout.stripe.com).
+            </p>
+            <div className="bg-gray-50 p-4 text-left text-sm font-mono text-gray-500 rounded-sm mb-6 border border-gray-200">
+              The exact frontend code required for your developer to connect your backend API is already written and commented out in the <span className="font-bold text-black">handleProcessPayment</span> function in this file.
+            </div>
+            <div className="flex space-x-4">
+              <button 
+                onClick={() => {
+                  setShowIntegrationModal(false);
+                  setCart([]);
+                  showToast("Test order completed!");
+                  navigate('home');
+                }}
+                className="flex-1 bg-black text-white py-3 font-bold hover:bg-gray-800 transition-colors"
+              >
+                FINISH TEST ORDER
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <h2 className="text-3xl font-bold tracking-tighter mb-8">Checkout</h2>
       
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
         <div className="lg:col-span-7">
-          <div className="bg-white p-6 border border-gray-200 rounded-sm shadow-sm min-h-[500px]">
-            <h3 className="font-bold text-lg mb-6">Complete your purchase securely via Stripe</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              You will now be securely checking out. Because this is a static demo, we are rendering a sample Stripe Pricing Table component to demonstrate a real, embedded payment integration.
-            </p>
+          <div className="bg-white p-6 md:p-10 border border-[#ebebeb] rounded-sm shadow-sm">
             
-            {/* Stripe Pricing Table Component */}
-            <div className="w-full overflow-hidden">
-               <stripe-pricing-table 
-                  pricing-table-id="prctbl_1QZ3r5RwaY2jT9iE3cZ6XyvN" 
-                  publishable-key="pk_test_51Pxk9lRwaY2jT9iEM81FhD9V53Nn9P7X5G4H4v8l8U6Q2Q4V9m8T3c6G8X4k5H9d8U2T1b9K3V5b7B6J4v2n4f6Q00m8X5D9K7"
-                >
-               </stripe-pricing-table>
+            {/* Step Indicators */}
+            <div className="flex items-center space-x-4 mb-10 text-sm font-bold tracking-wide">
+              <button 
+                onClick={() => setCheckoutStep(1)}
+                className={`pb-2 border-b-2 transition-colors ${checkoutStep === 1 ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-black'}`}
+              >
+                1. SHIPPING
+              </button>
+              <span className="text-gray-300 pb-2">/</span>
+              <button 
+                onClick={() => checkoutStep > 1 && setCheckoutStep(2)}
+                disabled={checkoutStep < 2}
+                className={`pb-2 border-b-2 transition-colors ${checkoutStep === 2 ? 'border-black text-black' : 'border-transparent text-gray-400'}`}
+              >
+                2. PAYMENT
+              </button>
             </div>
-            
-            <div className="mt-8 text-center text-xs text-gray-400">
-               <p>Powered by Stripe</p>
-               <button 
-                onClick={() => {
-                  setCart([]);
-                  showToast("Simulated order complete after Stripe return.");
-                  navigate('home');
-                }}
-                className="mt-4 underline hover:text-gray-600"
-               >
-                 Simulate Return from Stripe
-               </button>
-            </div>
+
+            {/* Step 1: Shipping Form */}
+            {checkoutStep === 1 && (
+              <form onSubmit={(e) => { e.preventDefault(); setCheckoutStep(2); }} className="space-y-6 animate-fade-in">
+                <h3 className="font-bold text-lg mb-6">Contact & Delivery</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="relative">
+                    <input type="text" id="fname" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+                    <label htmlFor="fname" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">First Name</label>
+                  </div>
+                  <div className="relative">
+                    <input type="text" id="lname" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+                    <label htmlFor="lname" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">Last Name</label>
+                  </div>
+                </div>
+                
+                <div className="relative">
+                  <input type="email" id="c-email" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+                  <label htmlFor="c-email" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">Email Address</label>
+                </div>
+
+                <div className="relative">
+                  <input type="text" id="address" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+                  <label htmlFor="address" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">Street Address</label>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="relative md:col-span-1">
+                    <input type="text" id="zip" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+                    <label htmlFor="zip" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">ZIP Code</label>
+                  </div>
+                  <div className="relative md:col-span-2">
+                    <input type="text" id="city" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+                    <label htmlFor="city" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">City</label>
+                  </div>
+                </div>
+
+                <button type="submit" className="w-full bg-[#1c1c1c] text-white py-4 mt-8 font-bold tracking-wide hover:bg-[#8c5625] transition-colors rounded-sm">
+                  CONTINUE TO PAYMENT
+                </button>
+              </form>
+            )}
+
+            {/* Step 2: Payment Form */}
+            {checkoutStep === 2 && (
+              <form onSubmit={handleProcessPayment} className="space-y-6 animate-fade-in">
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 mx-auto bg-[#635BFF]/10 text-[#635BFF] rounded-full flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+                  </div>
+                  <h3 className="font-bold text-xl mb-2">Secure Payment with Stripe</h3>
+                  <p className="text-gray-500 text-sm max-w-md mx-auto mb-8">
+                    You will be redirected to Stripe's encrypted checkout portal to securely enter your payment details and complete your purchase.
+                  </p>
+                  
+                  <button 
+                    type="submit" 
+                    disabled={isProcessing}
+                    className="w-full max-w-md mx-auto bg-[#635BFF] text-white py-4 font-bold tracking-wide hover:bg-[#5851df] transition-colors rounded-sm flex items-center justify-center space-x-3 disabled:bg-gray-400 shadow-md shadow-[#635BFF]/20"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>CREATING SECURE SESSION...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>PROCEED TO STRIPE CHECKOUT</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                      </>
+                    )}
+                  </button>
+                  <p className="text-center text-xs text-gray-400 mt-6 flex items-center justify-center space-x-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span>Payments are processed securely by Stripe.</span>
+                  </p>
+                </div>
+              </form>
+            )}
           </div>
         </div>
 
@@ -738,11 +889,13 @@ function CheckoutView({ cart, cartTotal, navigate, setCart, showToast }) {
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Shipping</span>
-                <span className="font-mono">Calculated at next step</span>
+                <span className="font-mono">{checkoutStep === 1 ? 'Calculated next step' : '$4.99'}</span>
               </div>
               <div className="flex justify-between font-bold text-lg mt-4 pt-4 border-t border-gray-200">
                 <span>Total</span>
-                <span className="font-mono">${cartTotal}</span>
+                <span className="font-mono">
+                  ${checkoutStep === 1 ? cartTotal : (Number(cartTotal) + 4.99).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
