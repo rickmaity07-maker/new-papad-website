@@ -33,41 +33,53 @@ export default function App() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   
+  // New States for Features
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
   // New State for Database Products
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch products from Supabase on load
+  // Fetch products (Mocked for this environment)
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // Correct Vite way to access environment variables
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-          console.error("Missing Supabase keys in environment variables!");
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch data via Supabase REST API
-        const response = await fetch(`${supabaseUrl}/rest/v1/products?select=*`, {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json'
+        // Mock data to simulate database response
+        const mockData = [
+          {
+            id: 1,
+            name: "Classic Urad Papad",
+            description: "The original black gram papad with a hint of black pepper.",
+            price: 5.99,
+            image: "https://images.unsplash.com/photo-1596450514735-3108c4e421a1?q=80&w=600&auto=format&fit=crop",
+            stock: 450
+          },
+          {
+            id: 2,
+            name: "Spicy Moong Papad",
+            description: "A fiery blend of moong dal and red chilies for the bold.",
+            price: 6.49,
+            image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=600&auto=format&fit=crop",
+            stock: 320
+          },
+          {
+            id: 3,
+            name: "Garlic & Herb",
+            description: "A modern twist with roasted garlic and mixed Indian herbs.",
+            price: 7.99,
+            image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?q=80&w=600&auto=format&fit=crop",
+            stock: 12 // Low stock
           }
-        });
+        ];
 
-        if (!response.ok) throw new Error("Failed to fetch products");
+        // Simulate network delay
+        await new Promise(resolve => setTimeout(resolve, 800));
         
-        const data = await response.json();
-        // Sort by ID to keep the display order consistent
-        const sortedData = data.sort((a, b) => a.id - b.id);
-        setProducts(sortedData);
+        setProducts(mockData);
       } catch (error) {
-        console.error("Error loading from database:", error);
+        console.error("Error loading mock database:", error);
       } finally {
         setIsLoading(false);
       }
@@ -94,8 +106,7 @@ export default function App() {
   const handleCheckout = () => {
     if (cart.length === 0) return;
     setIsCartOpen(false);
-    setCart([]); // Empty the cart
-    showToast("Processing Stripe Payment... Order Placed Successfully!");
+    navigate('checkout');
   };
 
   const navigate = (route) => {
@@ -103,11 +114,22 @@ export default function App() {
     setIsMenuOpen(false);
   };
 
-  const handleLogin = (adminStatus = false) => {
+  const handleLogin = (e, email, password) => {
+    e.preventDefault();
+    const isAdminUser = email === 'admin@thepapadco.com';
     setIsLoggedIn(true);
-    setIsAdmin(adminStatus);
-    navigate(adminStatus ? 'admin' : 'home');
-    showToast(`Successfully logged in as ${adminStatus ? 'Admin' : 'User'}`);
+    setIsAdmin(isAdminUser);
+    setCurrentUser({ email, name: email.split('@')[0] });
+    navigate(isAdminUser ? 'admin' : 'account');
+    showToast(`Successfully logged in as ${isAdminUser ? 'Admin' : 'User'}`);
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setIsAdmin(false);
+    setCurrentUser(null);
+    navigate('home');
+    showToast("Successfully logged out.");
   };
 
   // Calculate cart total
@@ -219,15 +241,30 @@ export default function App() {
 
           {/* Right Icons */}
           <div className="flex items-center space-x-6">
+            <div className="relative hidden md:flex items-center">
+              {isSearchOpen && (
+                <input 
+                  type="text" 
+                  autoFocus
+                  placeholder="Search papads..." 
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    if (currentRoute !== 'shop') navigate('shop');
+                  }}
+                  className="absolute right-8 w-48 border-b border-black bg-transparent px-2 py-1 text-sm focus:outline-none transition-all"
+                />
+              )}
+              <button 
+                onClick={() => setIsSearchOpen(!isSearchOpen)}
+                className="hover:text-[#8c5625] transition-colors"
+              >
+                <Search />
+              </button>
+            </div>
             <button 
-              onClick={() => showToast('Search functionality will be connected to Database soon.')}
-              className="hidden md:block hover:text-[#8c5625] transition-colors"
-            >
-              <Search />
-            </button>
-            <button 
-              onClick={() => isLoggedIn ? navigate('admin') : navigate('login')} 
-              className={`transition-colors ${currentRoute === 'login' || currentRoute === 'admin' ? 'text-[#8c5625]' : 'hover:text-[#8c5625]'}`}
+              onClick={() => isLoggedIn ? (isAdmin ? navigate('admin') : navigate('account')) : navigate('login')} 
+              className={`transition-colors ${['login', 'admin', 'account'].includes(currentRoute) ? 'text-[#8c5625]' : 'hover:text-[#8c5625]'}`}
             >
               <User />
             </button>
@@ -258,10 +295,12 @@ export default function App() {
       {/* PAGE CONTENT ROUTER */}
       <main className="flex-grow">
         {currentRoute === 'home' && <HomeView navigate={navigate} />}
-        {currentRoute === 'shop' && <ShopView addToCart={addToCart} products={products} isLoading={isLoading} />}
+        {currentRoute === 'shop' && <ShopView addToCart={addToCart} products={products} isLoading={isLoading} searchQuery={searchQuery} />}
         {currentRoute === 'bulk' && <BulkView showToast={showToast} />}
         {currentRoute === 'login' && <LoginView handleLogin={handleLogin} />}
-        {currentRoute === 'admin' && <AdminView showToast={showToast} products={products} isLoading={isLoading} />}
+        {currentRoute === 'account' && <AccountView user={currentUser} handleLogout={handleLogout} />}
+        {currentRoute === 'admin' && <AdminView showToast={showToast} products={products} isLoading={isLoading} handleLogout={handleLogout} />}
+        {currentRoute === 'checkout' && <CheckoutView cart={cart} cartTotal={cartTotal} navigate={navigate} setCart={setCart} showToast={showToast} />}
       </main>
 
       {/* FOOTER */}
@@ -337,13 +376,19 @@ function HomeView({ navigate }) {
   );
 }
 
-function ShopView({ addToCart, products, isLoading }) {
+function ShopView({ addToCart, products, isLoading, searchQuery }) {
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+    product.description.toLowerCase().includes((searchQuery || '').toLowerCase())
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 md:py-20 animate-fade-in">
       <div className="mb-12 md:mb-16">
         <h2 className="text-4xl md:text-5xl font-bold tracking-tighter mb-4">The Collection</h2>
         <p className="text-gray-500 font-mono text-sm">
-          {isLoading ? 'Loading catalog...' : `Showing ${products.length} products`}
+          {isLoading ? 'Loading catalog...' : `Showing ${filteredProducts.length} products`}
+          {searchQuery && ` for "${searchQuery}"`}
         </p>
       </div>
       
@@ -351,13 +396,13 @@ function ShopView({ addToCart, products, isLoading }) {
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
         </div>
-      ) : products.length === 0 ? (
+      ) : filteredProducts.length === 0 ? (
         <div className="text-center py-20 border border-dashed border-gray-300">
-          <p className="text-gray-500">No products found. Check your database.</p>
+          <p className="text-gray-500">No products found matching your search.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-12 md:gap-y-16">
-          {products.map(product => (
+          {filteredProducts.map(product => (
             <div key={product.id} className="group flex flex-col">
               <div className="w-full aspect-[4/5] bg-gray-100 overflow-hidden mb-6 relative rounded-sm cursor-pointer">
                 <img 
@@ -443,6 +488,9 @@ function BulkView({ showToast }) {
 }
 
 function LoginView({ handleLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
   return (
     <div className="max-w-md mx-auto px-6 py-20 md:py-32 animate-fade-in">
       <div className="text-center mb-10">
@@ -450,45 +498,45 @@ function LoginView({ handleLogin }) {
         <p className="text-gray-500 text-sm">Sign in to access your orders and wishlists.</p>
       </div>
 
-      <div className="space-y-4 mb-8">
+      <form onSubmit={(e) => handleLogin(e, email, password)} className="space-y-6 mb-8">
+        <div className="relative">
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} id="login-email" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+          <label htmlFor="login-email" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">Email Address</label>
+        </div>
+        <div className="relative">
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} id="login-password" className="peer w-full border-b border-gray-300 bg-transparent py-2 pt-6 focus:outline-none focus:border-black transition-colors" placeholder=" " required />
+          <label htmlFor="login-password" className="absolute left-0 top-2 text-xs text-gray-500 font-mono uppercase tracking-wide peer-focus:text-black transition-colors">Password</label>
+        </div>
         <button 
-          onClick={() => handleLogin(false)}
-          className="w-full flex items-center justify-center space-x-3 border border-gray-300 bg-white py-3 hover:bg-gray-50 transition-colors rounded-sm shadow-sm"
+          type="submit"
+          className="w-full bg-[#1c1c1c] text-white py-4 font-bold text-sm tracking-wide hover:bg-[#8c5625] transition-colors rounded-sm"
         >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5" alt="Google" />
-          <span className="font-medium text-sm">Continue with Google</span>
+          SIGN IN
         </button>
-        <button 
-          onClick={() => handleLogin(false)}
-          className="w-full flex items-center justify-center space-x-3 border border-gray-300 bg-white py-3 hover:bg-gray-50 transition-colors rounded-sm shadow-sm"
-        >
-          <svg className="w-5 h-5 text-[#1877F2]" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-          <span className="font-medium text-sm">Continue with Facebook</span>
-        </button>
-      </div>
+      </form>
 
       <div className="relative flex items-center justify-center mb-8">
         <div className="border-t border-gray-300 w-full absolute"></div>
-        <span className="bg-[#faf8f5] px-4 text-xs text-gray-500 font-mono relative z-10 uppercase">Or Admin Login</span>
+        <span className="bg-[#faf8f5] px-4 text-xs text-gray-500 font-mono relative z-10 uppercase">Demo Tips</span>
       </div>
 
-      <button 
-        onClick={() => handleLogin(true)}
-        className="w-full bg-[#1c1c1c] text-white py-3 font-bold text-sm tracking-wide hover:bg-[#8c5625] transition-colors rounded-sm"
-      >
-        LOGIN AS ADMIN
-      </button>
+      <div className="text-center text-sm text-gray-500">
+        Use <span className="font-bold text-black">admin@thepapadco.com</span> to test the Admin dashboard, or any other email for a standard account.
+      </div>
     </div>
   );
 }
 
-function AdminView({ showToast, products, isLoading }) {
+function AdminView({ showToast, products, isLoading, handleLogout }) {
   return (
     <div className="max-w-7xl mx-auto px-6 py-12 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 md:mb-12 border-b border-gray-200 pb-6 gap-4">
         <div>
           <h2 className="text-2xl md:text-3xl font-bold tracking-tighter mb-2">Admin Dashboard</h2>
-          <p className="text-gray-500 font-mono text-xs uppercase">Supabase Role: Authenticated Admin</p>
+          <div className="flex items-center space-x-4">
+            <p className="text-gray-500 font-mono text-xs uppercase">Role: Admin</p>
+            <button onClick={handleLogout} className="text-red-500 text-xs font-bold hover:underline">LOGOUT</button>
+          </div>
         </div>
         <button 
           onClick={() => showToast('Database insert form will open here.')}
@@ -552,6 +600,182 @@ function AdminView({ showToast, products, isLoading }) {
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AccountView({ user, handleLogout }) {
+  return (
+    <div className="max-w-4xl mx-auto px-6 py-12 animate-fade-in min-h-[60vh]">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-8 border-b border-gray-200 pb-4 gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tighter mb-1">My Account</h2>
+          <p className="text-gray-500">Welcome back, <span className="font-medium text-black">{user?.name || 'User'}</span>!</p>
+        </div>
+        <button onClick={handleLogout} className="text-sm font-bold border-b-2 border-black pb-1 hover:text-red-600 hover:border-red-600 transition-colors">
+          LOGOUT
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="md:col-span-2">
+          <h3 className="font-bold text-xl mb-4">Order History</h3>
+          <div className="bg-white border border-gray-200 p-12 text-center rounded-sm">
+            <Package className="w-8 h-8 mx-auto mb-3 text-gray-300" />
+            <p className="text-gray-500 text-sm">You haven't placed any orders yet.</p>
+          </div>
+        </div>
+        <div>
+          <h3 className="font-bold text-xl mb-4">Account Details</h3>
+          <div className="bg-white border border-gray-200 p-6 rounded-sm space-y-4">
+            <div>
+              <p className="text-xs text-gray-500 font-mono uppercase">Name</p>
+              <p className="font-medium capitalize">{user?.name}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-mono uppercase">Email</p>
+              <p className="font-medium">{user?.email}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CheckoutView({ cart, cartTotal, navigate, setCart, showToast }) {
+  const [step, setStep] = useState(1);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handlePlaceOrder = (e) => {
+    e.preventDefault();
+    setIsProcessing(true);
+    
+    // Simulate payment gateway delay
+    setTimeout(() => {
+      setIsProcessing(false);
+      setCart([]);
+      setStep(3); // Success step
+      showToast("Order placed successfully!");
+    }, 1500);
+  };
+
+  if (cart.length === 0 && step !== 3) {
+    return (
+      <div className="max-w-xl mx-auto px-6 py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4">Your bag is empty</h2>
+        <button onClick={() => navigate('shop')} className="bg-black text-white px-6 py-3 font-bold text-sm">
+          RETURN TO SHOP
+        </button>
+      </div>
+    );
+  }
+
+  if (step === 3) {
+    return (
+      <div className="max-w-xl mx-auto px-6 py-20 text-center animate-fade-in">
+        <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+        </div>
+        <h2 className="text-3xl font-bold tracking-tighter mb-4">Order Confirmed</h2>
+        <p className="text-gray-600 mb-8 leading-relaxed">Thank you for your purchase. We've received your order and will email you the tracking details shortly.</p>
+        <button onClick={() => navigate('home')} className="bg-black text-white px-8 py-4 font-bold text-sm hover:bg-[#8c5625] transition-colors rounded-sm">
+          CONTINUE SHOPPING
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto px-6 py-12 animate-fade-in">
+      <h2 className="text-3xl font-bold tracking-tighter mb-8">Checkout</h2>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        <div className="lg:col-span-7 space-y-8">
+          {/* Shipping Form */}
+          <div className={`p-6 border rounded-sm ${step === 1 ? 'border-black bg-white shadow-sm' : 'border-gray-200 bg-gray-50'}`}>
+            <h3 className="font-bold text-lg mb-4 flex items-center justify-between">
+              <span>1. Shipping Information</span>
+              {step > 1 && <button onClick={() => setStep(1)} className="text-xs font-mono text-gray-500 underline hover:text-black">EDIT</button>}
+            </h3>
+            
+            {step === 1 && (
+              <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-4 animate-fade-in">
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="First Name" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                  <input type="text" placeholder="Last Name" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                </div>
+                <input type="text" placeholder="Address" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                <div className="grid grid-cols-2 gap-4">
+                  <input type="text" placeholder="City" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                  <input type="text" placeholder="ZIP Code" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                </div>
+                <button type="submit" className="w-full bg-black text-white py-4 font-bold text-sm mt-4 hover:bg-[#8c5625] transition-colors rounded-sm">
+                  CONTINUE TO PAYMENT
+                </button>
+              </form>
+            )}
+          </div>
+
+          {/* Payment Form */}
+          <div className={`p-6 border rounded-sm ${step === 2 ? 'border-black bg-white shadow-sm' : 'border-gray-200 bg-gray-50 opacity-60'}`}>
+            <h3 className="font-bold text-lg mb-4">2. Payment Method</h3>
+            
+            {step === 2 && (
+              <form onSubmit={handlePlaceOrder} className="space-y-4 animate-fade-in">
+                <div className="p-4 border border-gray-200 bg-gray-50 rounded-sm mb-4">
+                  <p className="text-sm text-gray-600 mb-4 font-mono">Simulated Card Details</p>
+                  <input type="text" placeholder="Card Number (e.g. 4242 4242 4242 4242)" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none mb-3 rounded-sm" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <input type="text" placeholder="MM/YY" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                    <input type="text" placeholder="CVC" required className="w-full border border-gray-300 p-3 text-sm focus:border-black outline-none rounded-sm" />
+                  </div>
+                </div>
+                <button 
+                  type="submit" 
+                  disabled={isProcessing}
+                  className="w-full bg-black text-white py-4 font-bold text-sm flex items-center justify-center hover:bg-[#8c5625] transition-colors disabled:opacity-70 rounded-sm"
+                >
+                  {isProcessing ? 'PROCESSING...' : `PAY $${cartTotal}`}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Order Summary */}
+        <div className="lg:col-span-5">
+          <div className="bg-gray-50 p-6 border border-gray-200 rounded-sm sticky top-28">
+            <h3 className="font-bold text-lg mb-6">Order Summary</h3>
+            <div className="space-y-4 mb-6 max-h-64 overflow-y-auto pr-2">
+              {cart.map((item, idx) => (
+                <div key={idx} className="flex justify-between items-center">
+                  <div className="flex items-center space-x-3">
+                    <img src={item.image} alt={item.name} className="w-12 h-12 object-cover border border-gray-200 rounded-sm" />
+                    <span className="text-sm font-medium">{item.name}</span>
+                  </div>
+                  <span className="text-sm font-mono">${Number(item.price).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="border-t border-gray-200 pt-4 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span className="font-mono">${cartTotal}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Shipping</span>
+                <span className="font-mono">Free</span>
+              </div>
+              <div className="flex justify-between font-bold text-lg mt-4 pt-4 border-t border-gray-200">
+                <span>Total</span>
+                <span className="font-mono">${cartTotal}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
