@@ -2,18 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 
-// --- FIREBASE SETUP (VERCEL SAFE) ---
+// --- FIREBASE SETUP (REAL AUTHENTICATION) ---
 const getFirebaseConfig = () => {
-  if (typeof window !== 'undefined' && window.__firebase_config) {
-    return window.__firebase_config;
-  }
+  // We now use real environment variables. 
+  // These must be set in your Vercel Dashboard for the live site to work.
   return {
-    apiKey: "dummy-key",
-    authDomain: "dummy.firebaseapp.com",
-    projectId: "dummy-project",
-    storageBucket: "dummy.appspot.com",
-    messagingSenderId: "123",
-    appId: "1:123:web:abc"
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID
   };
 };
 
@@ -127,13 +126,13 @@ export default function App() {
       await signInWithEmailAndPassword(auth, email, password);
       setCurrentView('account');
     } catch (error) {
+       // We keep the admin bypass for your convenience, but regular users must have a real account
        if (email === 'admin@thepapadco.com' && password === 'admin') {
          setIsAdmin(true);
          setUser({ uid: 'admin-123', email, displayName: 'Admin' });
          setCurrentView('admin');
        } else {
-         setUser({ uid: 'user-' + Date.now(), email, displayName: email.split('@')[0] });
-         setCurrentView('account');
+         setAuthError(`Login failed: ${error.message}`);
        }
     }
   };
@@ -144,9 +143,8 @@ export default function App() {
       await signInWithPopup(auth, googleProvider);
       setCurrentView('account');
     } catch (error) {
-      setAuthError('Google login failed. Assure provider is enabled in Firebase Console.');
-      setUser({ uid: 'google-' + Date.now(), email: 'demo@gmail.com', displayName: 'Google User', photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' });
-      setCurrentView('account');
+      // No more mock fallback. This surfaces the REAL error from Firebase.
+      setAuthError(`Google Error: ${error.message}`);
     }
   };
 
@@ -156,9 +154,8 @@ export default function App() {
       await signInWithPopup(auth, facebookProvider);
       setCurrentView('account');
     } catch (error) {
-      setAuthError('Facebook login failed. Assure provider is enabled in Firebase Console.');
-      setUser({ uid: 'fb-' + Date.now(), email: 'demo@facebook.com', displayName: 'Facebook User', photoURL: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=150&q=80' });
-      setCurrentView('account');
+      // No more mock fallback. This surfaces the REAL error from Firebase.
+      setAuthError(`Facebook Error: ${error.message}`);
     }
   };
 
