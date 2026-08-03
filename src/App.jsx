@@ -358,19 +358,24 @@ export default function App() {
 
       <main className="flex-grow">
         
-        {/* Home Route */}
-        {currentRoute === 'home' && (
-          <div className="flex flex-col">
-            <section className="relative h-[70vh] bg-gray-900 flex items-center justify-center text-white">
-              <img src="https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&q=80" alt="Papad background" className="absolute inset-0 w-full h-full object-cover opacity-40" />
-              <div className="relative z-10 text-center px-4">
-                <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4">THE CRUNCH<br/>YOU CRAVE.</h1>
-                <p className="text-lg md:text-xl font-light mb-8 max-w-2xl mx-auto">Authentic, handmade papads delivered straight to your door. Experience the taste of tradition with LIJO Papad.</p>
-                <button onClick={() => navigateTo('shop')} className="bg-white text-black px-8 py-4 rounded-full font-bold tracking-widest hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-xl">SHOP NOW</button>
-              </div>
-            </section>
-          </div>
-        )}
+       {/* Home Route */}
+{currentRoute === 'home' && (
+  <div className="flex flex-col">
+    <section className="relative h-[70vh] bg-gray-900 flex items-center justify-center text-white">
+      {/* Update the src to your local file path */}
+      <img 
+        src="/moong-dal-papad-1000x1000.webp" 
+        alt="Moong Dal Papad" 
+        className="absolute inset-0 w-full h-full object-cover opacity-40" 
+      />
+      <div className="relative z-10 text-center px-4">
+        <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4">THE CRUNCH<br/>YOU CRAVE.</h1>
+        <p className="text-lg md:text-xl font-light mb-8 max-w-2xl mx-auto">Authentic, handmade papads delivered straight to your door. Experience the taste of tradition with LIJO Papad.</p>
+        <button onClick={() => navigateTo('shop')} className="bg-white text-black px-8 py-4 rounded-full font-bold tracking-widest hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-xl">SHOP NOW</button>
+      </div>
+    </section>
+  </div>
+)}
 
         {/* Shop Route */}
         {currentRoute === 'shop' && (
