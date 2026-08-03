@@ -154,6 +154,14 @@ export default function App() {
       return;
     }
     const isWished = wishlist.some(item => item.id === product.id);
+    
+    // Optimistic UI: Update screen instantly before cloud finishes
+    if (isWished) {
+      setWishlist(prev => prev.filter(item => item.id !== product.id));
+    } else {
+      setWishlist(prev => [...prev, product]);
+    }
+
     const wishRef = doc(db, 'apps', appId, 'users', user.uid, 'wishlist', String(product.id));
     
     try {
@@ -164,6 +172,12 @@ export default function App() {
       }
     } catch (error) {
       console.error("Error updating wishlist:", error);
+      // Revert optimistic UI if internet fails
+      if (isWished) {
+        setWishlist(prev => [...prev, product]);
+      } else {
+        setWishlist(prev => prev.filter(item => item.id !== product.id));
+      }
       alert("Failed to update wishlist. Check Firestore settings.");
     }
   };
@@ -248,7 +262,7 @@ export default function App() {
             <button onClick={() => setCurrentView('account')} className="relative hidden sm:block">
               <HeartIcon filled={wishlist.length > 0} />
               {wishlist.length > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full pointer-events-none">
                   {wishlist.length}
                 </span>
               )}
@@ -259,7 +273,7 @@ export default function App() {
           <button onClick={() => setIsCartOpen(true)} className="relative">
             <ShoppingBagIcon />
             {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#111] text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+              <span className="absolute -top-2 -right-2 bg-[#111] text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full pointer-events-none">
                 {cart.length}
               </span>
             )}
@@ -268,6 +282,7 @@ export default function App() {
       </header>
 
       <main className="flex-grow flex flex-col">
+        {}
         {currentView === 'home' && (
           <div className="flex-grow flex flex-col md:flex-row h-full">
             <div className="w-full md:w-1/2 p-8 md:p-24 flex flex-col justify-center">
@@ -283,6 +298,7 @@ export default function App() {
           </div>
         )}
         
+        {}
         {currentView === 'shop' && (
           <div className="px-8 py-16 max-w-7xl mx-auto w-full">
             <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
@@ -307,12 +323,19 @@ export default function App() {
                 <div key={p.id} className="group cursor-pointer">
                   <div className="aspect-[4/5] bg-gray-100 mb-6 overflow-hidden relative">
                     <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                    
+                    {/* Fixed Wishlist Button: High z-index, stops event bubbling */}
                     <button 
-                      onClick={(e) => { e.stopPropagation(); toggleWishlist(p); }}
-                      className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:scale-110 transition-transform text-[#111]"
+                      onClick={(e) => { 
+                        e.preventDefault(); 
+                        e.stopPropagation(); 
+                        toggleWishlist(p); 
+                      }}
+                      className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:scale-110 transition-transform text-[#111] z-20 cursor-pointer"
                     >
                       <HeartIcon filled={wishlist.some(w => w.id === p.id)} size={18} />
                     </button>
+                    
                   </div>
                   <h3 className="font-bold">{p.name}</h3>
                   <p className="text-gray-500 text-sm mb-4">${p.price.toFixed(2)}</p>
@@ -323,6 +346,7 @@ export default function App() {
           </div>
         )}
 
+        {}
         {currentView === 'wholesale' && (
           <div className="max-w-3xl mx-auto w-full px-8 py-24">
             <div className="text-center mb-16">
@@ -353,6 +377,7 @@ export default function App() {
           </div>
         )}
 
+        {}
         {currentView === 'account' && (
           <div className="max-w-6xl mx-auto w-full px-8 py-16">
             {!user ? (
@@ -477,6 +502,7 @@ export default function App() {
         </p>
       </footer>
 
+      {}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
