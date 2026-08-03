@@ -34,12 +34,12 @@ import {
 // Replace the dummy strings below with your ACTUAL keys from the Firebase Console.
 // Doing this bypasses Vercel's environment variable checks entirely.
 const firebaseConfig = {
-  apiKey: "AIzaSyYourActualKeyHere...",
-  authDomain: "your-project.firebaseapp.com",
-  projectId: "your-project",
-  storageBucket: "your-project.appspot.com",
-  messagingSenderId: "1234567890",
-  appId: "1:123:web:456"
+  apiKey: "AIzaSyD8bWmJH6gM32--7CKQS0fzYtfkbQ53iIU",
+  authDomain: "the-papad-co.firebaseapp.com",
+  projectId: "the-papad-co",
+  storageBucket: "the-papad-co.firebasestorage.app",
+  messagingSenderId: "642426697779",
+  appId: "1:642426697779:web:81a0e22d6fd5e2087c4b46"
 };
 
 const app = initializeApp(firebaseConfig);
