@@ -209,6 +209,10 @@ export default function App() {
             ) : (
               <div className="border border-gray-200 p-8">
                 <h2 className="text-2xl font-black uppercase mb-8">Welcome, {user.displayName}</h2>
+                <div className="mb-8">
+                    <h3 className="text-lg font-bold">Order History</h3>
+                    {orders.filter(o => o.userEmail === user.email).map(o => <div key={o.id} className="border-t py-2">{o.id} - ${o.total.toFixed(2)}</div>)}
+                </div>
                 <button onClick={handleLogout} className="border border-[#111] px-6 py-3 text-xs font-bold uppercase">Sign Out</button>
               </div>
             )}
