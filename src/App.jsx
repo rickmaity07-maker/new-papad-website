@@ -31,17 +31,15 @@ import {
   ShieldCheck
 } from 'lucide-react';
 
-// IMPORTANT FOR VERCEL DEPLOYMENT:
-// Vercel expects import.meta.env variables. Before pushing to GitHub/Vercel, 
-// you must replace these placeholder strings with your actual variables like this:
-// apiKey: import.meta.env.VITE_FIREBASE_API_KEY
+// Replace the dummy strings below with your ACTUAL keys from the Firebase Console.
+// Doing this bypasses Vercel's environment variable checks entirely.
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY_HERE",
-  authDomain: "YOUR_AUTH_DOMAIN_HERE",
-  projectId: "YOUR_PROJECT_ID_HERE",
-  storageBucket: "YOUR_STORAGE_BUCKET_HERE",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID_HERE",
-  appId: "YOUR_APP_ID_HERE"
+  apiKey: "AIzaSyYourActualKeyHere...",
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:123:web:456"
 };
 
 const app = initializeApp(firebaseConfig);
