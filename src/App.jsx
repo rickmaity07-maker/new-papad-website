@@ -70,7 +70,20 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [b2bForm, setB2bForm] = useState({ name: '', business: '', email: '', volume: '' });
+  const [b2bForm, setB2bForm] = useState({ 
+    contactName: '', 
+    businessName: '', 
+    businessType: '', 
+    email: '', 
+    phone: '', 
+    altPhone: '',
+    city: '', 
+    state: '', 
+    country: '', 
+    gst: '', 
+    volume: '', 
+    message: '' 
+  });
 
   useEffect(() => {
     // Hash routing logic
@@ -461,36 +474,106 @@ export default function App() {
           <div className="max-w-3xl mx-auto px-4 py-16 sm:px-6">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-black tracking-tight mb-4">PARTNER WITH US</h2>
-              <p className="text-gray-500 text-lg">Stock LIJO Papad in your retail store or restaurant. Fill out the form below for wholesale pricing.</p>
+              <p className="text-gray-500 text-lg">Stock LIJO Papad in your retail store, restaurant, or distribution network. Tell us about your business and we'll get back to you with wholesale pricing.</p>
             </div>
             
-            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6" onSubmit={(e) => {
+            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-10" onSubmit={(e) => {
               e.preventDefault();
               showToast("Application submitted! We will contact you soon.", "success");
-              setB2bForm({ name: '', business: '', email: '', volume: '' });
+              setB2bForm({ contactName: '', businessName: '', businessType: '', email: '', phone: '', altPhone: '', city: '', state: '', country: '', gst: '', volume: '', message: '' });
             }}>
+
+              {/* Contact Details */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                <input required type="text" value={b2bForm.name} onChange={e => setB2bForm({...b2bForm, name: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Contact Details</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                    <input required type="text" value={b2bForm.contactName} onChange={e => setB2bForm({...b2bForm, contactName: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
+                      <input required type="tel" placeholder="+91 98765 43210" value={b2bForm.phone} onChange={e => setB2bForm({...b2bForm, phone: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Alternate / WhatsApp Number</label>
+                      <input type="tel" placeholder="Optional" value={b2bForm.altPhone} onChange={e => setB2bForm({...b2bForm, altPhone: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                    <input required type="email" value={b2bForm.email} onChange={e => setB2bForm({...b2bForm, email: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                </div>
               </div>
+
+              {/* Business Details */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
-                <input required type="text" value={b2bForm.business} onChange={e => setB2bForm({...b2bForm, business: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Business Details</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                    <input required type="text" value={b2bForm.businessName} onChange={e => setB2bForm({...b2bForm, businessName: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
+                      <select required value={b2bForm.businessType} onChange={e => setB2bForm({...b2bForm, businessType: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
+                        <option value="">Select an option</option>
+                        <option value="retailer">Retail Store</option>
+                        <option value="supermarket">Supermarket / Grocery Chain</option>
+                        <option value="restaurant">Restaurant / Café</option>
+                        <option value="distributor">Distributor</option>
+                        <option value="exporter">Exporter</option>
+                        <option value="online">Online Reseller</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">GST / Tax ID <span className="text-gray-400 font-normal">(optional)</span></label>
+                      <input type="text" value={b2bForm.gst} onChange={e => setB2bForm({...b2bForm, gst: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                      <input required type="text" value={b2bForm.city} onChange={e => setB2bForm({...b2bForm, city: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                      <input required type="text" value={b2bForm.state} onChange={e => setB2bForm({...b2bForm, state: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                      <input required type="text" value={b2bForm.country} onChange={e => setB2bForm({...b2bForm, country: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Order Requirements */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                <input required type="email" value={b2bForm.email} onChange={e => setB2bForm({...b2bForm, email: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Order Requirements</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Expected Monthly Volume (lbs)</label>
+                    <select required value={b2bForm.volume} onChange={e => setB2bForm({...b2bForm, volume: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
+                      <option value="">Select an option</option>
+                      <option value="10-50">10 - 50 lbs</option>
+                      <option value="50-200">50 - 200 lbs</option>
+                      <option value="200-500">200 - 500 lbs</option>
+                      <option value="500+">500+ lbs</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Additional Requirements <span className="text-gray-400 font-normal">(flavors, packaging, delivery frequency, etc.)</span></label>
+                    <textarea rows="4" value={b2bForm.message} onChange={e => setB2bForm({...b2bForm, message: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all resize-none" />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Expected Monthly Volume (lbs)</label>
-                <select required value={b2bForm.volume} onChange={e => setB2bForm({...b2bForm, volume: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
-                  <option value="">Select an option</option>
-                  <option value="10-50">10 - 50 lbs</option>
-                  <option value="50-200">50 - 200 lbs</option>
-                  <option value="200+">200+ lbs</option>
-                </select>
-              </div>
-              <button type="submit" className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors mt-8">SUBMIT APPLICATION</button>
+
+              <button type="submit" className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors">SUBMIT APPLICATION</button>
             </form>
           </div>
         )}
