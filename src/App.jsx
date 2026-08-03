@@ -32,26 +32,13 @@ import {
   Package
 } from 'lucide-react';
 
-// Using optional chaining safely, falling back to dummy keys if environment variables are unavailable
-const getEnvVar = (key, fallback) => {
-    try {
-        // Attempt to access import.meta.env only if it exists, otherwise catch the error
-        if (typeof import.meta !== 'undefined' && import.meta.env) {
-             return import.meta.env[key] || fallback;
-        }
-    } catch (e) {
-        // Ignore error in environments that throw on import.meta access
-    }
-    return fallback;
-};
-
 const firebaseConfig = {
-  apiKey: getEnvVar('VITE_FIREBASE_API_KEY', "dummy_key"),
-  authDomain: getEnvVar('VITE_FIREBASE_AUTH_DOMAIN', "dummy_domain"),
-  projectId: getEnvVar('VITE_FIREBASE_PROJECT_ID', "dummy_project"),
-  storageBucket: getEnvVar('VITE_FIREBASE_STORAGE_BUCKET', "dummy_bucket"),
-  messagingSenderId: getEnvVar('VITE_FIREBASE_MESSAGING_SENDER_ID', "dummy_sender"),
-  appId: getEnvVar('VITE_FIREBASE_APP_ID', "dummy_app_id")
+  apiKey: "dummy_key",
+  authDomain: "dummy_domain",
+  projectId: "dummy_project",
+  storageBucket: "dummy_bucket",
+  messagingSenderId: "dummy_sender",
+  appId: "dummy_app_id"
 };
 
 const app = initializeApp(firebaseConfig);
