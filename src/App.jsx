@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, collectionGroup, getDocs, query, orderBy } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, collectionGroup, getDocs, query } from 'firebase/firestore';
 
-// --- FIREBASE SETUP ---
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -19,15 +18,16 @@ const db = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 const facebookProvider = new FacebookAuthProvider();
 
-// We keep the internal DB ID the same so you don't lose your previous data!
 const appId = 'the-papad-co'; 
 
-// --- ICONS ---
 const ShoppingBagIcon = ({ size = 20 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
 );
 const UserIcon = ({ size = 20 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+);
+const SearchIcon = ({ size = 20 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
 );
 const CloseIcon = ({ size = 24 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -55,10 +55,10 @@ const products = [
 ];
 
 export default function App() {
-  // ROUTING STATE: Read from URL hash on load
+  // ROUTING STATE: Added 'b2b' back to the list of allowed routes
   const [currentView, setCurrentView] = useState(() => {
     const hash = window.location.hash.replace('#', '');
-    return ['home', 'shop', 'account', 'admin'].includes(hash) ? hash : 'home';
+    return ['home', 'shop', 'account', 'admin', 'b2b'].includes(hash) ? hash : 'home';
   });
 
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -68,23 +68,23 @@ export default function App() {
   const [cart, setCart] = useState([]);
   const [orders, setOrders] = useState([]);
   const [wishlist, setWishlist] = useState([]); 
-  const [allAdminOrders, setAllAdminOrders] = useState([]); // For Admin View
+  const [allAdminOrders, setAllAdminOrders] = useState([]); 
   
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // 1. Listen for URL changes (Back button, manual URL typing)
+  // 1. Listen for URL changes to support browser Back/Forward buttons
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '');
-      setCurrentView(['home', 'shop', 'account', 'admin'].includes(hash) ? hash : 'home');
-      setIsMobileMenuOpen(false); // Close mobile menu when navigating
+      setCurrentView(['home', 'shop', 'account', 'admin', 'b2b'].includes(hash) ? hash : 'home');
+      setIsMobileMenuOpen(false); 
     };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
 
-  // Central Navigation Function
+  // Central Navigation Function updates the URL hash
   const navigate = (view) => {
     window.location.hash = view;
   };
@@ -95,7 +95,7 @@ export default function App() {
       if (currentUser) {
         setUser({ uid: currentUser.uid, email: currentUser.email, displayName: currentUser.displayName || 'User' });
         
-        // Define admin emails here
+        // Admin configuration
         const adminStatus = currentUser.email === 'admin@thepapadco.com' || currentUser.email === 'admin@lijopapad.com';
         setIsAdmin(adminStatus);
 
@@ -115,7 +115,7 @@ export default function App() {
             const allOrd = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
             setAllAdminOrders(allOrd.sort((a, b) => new Date(b.date) - new Date(a.date)));
           } catch (e) {
-            console.error("Admin Fetch Error (Might need Firestore Index): ", e);
+            console.error("Admin Fetch Error: ", e);
           }
         }
       } else {
@@ -124,6 +124,25 @@ export default function App() {
     });
     return unsubscribeAuth;
   }, []);
+
+  // Restored robust login handlers to catch popup errors explicitly
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error("Google Login Error:", error);
+      alert(`Google Login Failed: ${error.message}`);
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      await signInWithPopup(auth, facebookProvider);
+    } catch (error) {
+      console.error("Facebook Login Error:", error);
+      alert(`Facebook Login Failed: ${error.message}`);
+    }
+  };
 
   const addToCart = (product) => {
     setCart(prev => {
@@ -186,7 +205,7 @@ export default function App() {
         total: cartTotal, 
         date: new Date().toISOString(), 
         status: 'Processing',
-        customerEmail: user.email // Helpful for admin view
+        customerEmail: user.email 
       });
       setCart([]); 
       setIsCartOpen(false); 
@@ -194,6 +213,15 @@ export default function App() {
     } catch (e) {
       alert("Failed to checkout. Ensure database is enabled.");
     }
+  };
+
+  const handleSearchClick = () => {
+    navigate('shop');
+    // Slight delay to allow view to change before focusing the input
+    setTimeout(() => {
+      const searchInput = document.getElementById('shop-search-input');
+      if (searchInput) searchInput.focus();
+    }, 100);
   };
 
   return (
@@ -213,10 +241,12 @@ export default function App() {
         {/* Desktop Nav */}
         <nav className="hidden md:flex gap-12 text-xs font-bold tracking-[0.2em] uppercase">
           <button onClick={() => navigate('shop')} className={currentView === 'shop' ? 'border-b-2 border-[#111]' : 'hover:opacity-60 transition-opacity'}>Shop</button>
+          <button onClick={() => navigate('b2b')} className={currentView === 'b2b' ? 'border-b-2 border-[#111]' : 'hover:opacity-60 transition-opacity'}>B2B Wholesale</button>
           {isAdmin && <button onClick={() => navigate('admin')} className="text-red-500">Admin</button>}
         </nav>
         
         <div className="flex items-center gap-4 md:gap-6">
+          <button onClick={handleSearchClick} className="hover:scale-110 transition-transform"><SearchIcon /></button>
           <button onClick={() => navigate('account')} className="hover:scale-110 transition-transform"><UserIcon /></button>
           <button onClick={() => setIsCartOpen(true)} className="relative hover:scale-110 transition-transform">
             <ShoppingBagIcon />
@@ -225,7 +255,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* MOBILE MENU (Slide-in from left) */}
+      {/* MOBILE MENU */}
       <div className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMobileMenuOpen(false)}>
         <div className={`fixed top-0 left-0 w-[80%] max-w-sm h-full bg-white p-8 transform transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={e => e.stopPropagation()}>
           <div className="flex justify-between items-center mb-12">
@@ -235,6 +265,7 @@ export default function App() {
           <nav className="flex flex-col gap-8 text-sm font-bold tracking-[0.2em] uppercase">
             <button className="text-left" onClick={() => navigate('home')}>Home</button>
             <button className="text-left" onClick={() => navigate('shop')}>Shop Collection</button>
+            <button className="text-left" onClick={() => navigate('b2b')}>B2B Wholesale</button>
             <button className="text-left" onClick={() => navigate('account')}>My Account</button>
             {isAdmin && <button className="text-left text-red-500" onClick={() => navigate('admin')}>Admin Dashboard</button>}
           </nav>
@@ -243,7 +274,7 @@ export default function App() {
 
       <main className="flex-grow flex flex-col relative">
         
-        {/* HOME VIEW */}
+        {}
         {currentView === 'home' && (
           <div className="flex-grow flex flex-col md:flex-row h-full min-h-[80vh]">
             <div className="w-full md:w-1/2 p-8 md:p-24 flex flex-col justify-center bg-gray-50/50">
@@ -255,12 +286,13 @@ export default function App() {
           </div>
         )}
 
-        {/* SHOP VIEW */}
+        {}
         {currentView === 'shop' && (
           <div className="px-6 py-12 md:px-8 md:py-16 max-w-7xl mx-auto w-full">
             <div className="mb-12 text-center">
               <h2 className="text-3xl font-black uppercase tracking-widest mb-4">The Collection</h2>
               <input 
+                id="shop-search-input"
                 type="text" 
                 placeholder="Search products..." 
                 className="border-b border-gray-300 pb-2 px-4 focus:outline-none focus:border-[#111] w-full max-w-md text-sm text-center"
@@ -289,16 +321,66 @@ export default function App() {
           </div>
         )}
 
-        {/* ACCOUNT VIEW */}
+        {}
+        {currentView === 'b2b' && (
+          <div className="max-w-3xl mx-auto py-12 px-6 md:py-24 md:px-8 w-full">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-black uppercase tracking-widest mb-4">Wholesale & B2B</h2>
+              <p className="text-gray-500">Partner with LIJO Papad for your restaurant, grocery store, or catering business. We offer competitive bulk pricing on all our traditional recipes.</p>
+            </div>
+            
+            <form className="space-y-8 bg-gray-50 p-8 md:p-12" onSubmit={(e) => { e.preventDefault(); alert('Inquiry sent! Our wholesale team will contact you within 24 hours.'); }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Business Name</label>
+                  <input type="text" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111]" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Contact Name</label>
+                  <input type="text" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111]" required />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Email Address</label>
+                  <input type="email" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111]" required />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Expected Monthly Volume</label>
+                  <select className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111] cursor-pointer">
+                    <option>Less than 50kg</option>
+                    <option>50kg - 200kg</option>
+                    <option>200kg - 500kg</option>
+                    <option>500kg+</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider mb-2">Additional Details</label>
+                <textarea rows="3" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111] resize-none" placeholder="Tell us about your business..."></textarea>
+              </div>
+
+              <button type="submit" className="w-full bg-[#111] text-white py-5 text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors">
+                Submit Inquiry
+              </button>
+            </form>
+          </div>
+        )}
+
+        {}
         {currentView === 'account' && (
           <div className="max-w-4xl mx-auto py-12 px-6 md:py-24 md:px-8 w-full">
             {!user ? (
               <div className="max-w-md mx-auto space-y-6 text-center">
                 <h2 className="text-3xl font-black uppercase tracking-widest mb-8">Welcome Back</h2>
-                <button onClick={() => signInWithPopup(auth, googleProvider)} className="w-full py-4 border border-gray-200 flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors uppercase text-xs font-bold tracking-wider">
+                
+                {/* Updated Login Buttons with explicitly handled functions */}
+                <button onClick={handleGoogleLogin} className="w-full py-4 border border-gray-200 flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors uppercase text-xs font-bold tracking-wider">
                   <GoogleIcon /> Continue with Google
                 </button>
-                <button onClick={() => signInWithPopup(auth, facebookProvider)} className="w-full py-4 bg-[#1877F2] text-white flex items-center justify-center gap-3 hover:bg-[#166fe5] transition-colors uppercase text-xs font-bold tracking-wider">
+                <button onClick={handleFacebookLogin} className="w-full py-4 bg-[#1877F2] text-white flex items-center justify-center gap-3 hover:bg-[#166fe5] transition-colors uppercase text-xs font-bold tracking-wider">
                   <FacebookIcon /> Continue with Facebook
                 </button>
               </div>
@@ -357,6 +439,7 @@ export default function App() {
           </div>
         )}
 
+        {}
         {currentView === 'admin' && isAdmin && (
           <div className="px-6 py-12 md:px-8 md:py-16 max-w-6xl mx-auto w-full">
             <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest mb-2">Admin Dashboard</h2>
@@ -383,7 +466,7 @@ export default function App() {
                     <tbody className="text-sm">
                       {allAdminOrders.map(order => (
                         <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                          <td className="py-4 pr-4">{new Date(order.date).toLocaleDateString()}</td>
+                          <td className="py-4 pr-4 whitespace-nowrap">{new Date(order.date).toLocaleDateString()}</td>
                           <td className="py-4 pr-4 font-mono text-xs">{order.id.slice(-6).toUpperCase()}</td>
                           <td className="py-4 pr-4">{order.customerEmail || 'Guest'}</td>
                           <td className="py-4 pr-4 font-bold">${order.total.toFixed(2)}</td>
@@ -401,17 +484,16 @@ export default function App() {
         )}
       </main>
 
+      {}
       {/* CART DRAWER */}
       <div className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}>
         <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`} onClick={e => e.stopPropagation()}>
           
-          {/* Cart Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-100">
             <h2 className="font-black uppercase tracking-widest text-lg">Your Cart ({cart.length})</h2>
             <button onClick={() => setIsCartOpen(false)} className="hover:rotate-90 transition-transform"><CloseIcon /></button>
           </div>
 
-          {/* Cart Items */}
           <div className="flex-grow overflow-y-auto p-6 space-y-6">
             {cart.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
@@ -442,7 +524,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Cart Footer / Checkout */}
           {cart.length > 0 && (
             <div className="p-6 border-t border-gray-100 bg-gray-50">
               <div className="flex justify-between items-center mb-6 text-lg">
