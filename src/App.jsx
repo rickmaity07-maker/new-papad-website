@@ -374,6 +374,29 @@ export default function App() {
         <button onClick={() => navigateTo('shop')} className="bg-white text-black px-8 py-4 rounded-full font-bold tracking-widest hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-xl">SHOP NOW</button>
       </div>
     </section>
+
+    {/* Our Story */}
+    <section className="max-w-5xl mx-auto px-4 py-20 sm:px-6 lg:px-8 text-center">
+      <p className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-4">Est. 1962 &middot; Bangalore, Karnataka, India</p>
+      <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-6">FOUR GENERATIONS OF THE CRUNCH.</h2>
+      <p className="text-gray-500 text-lg leading-relaxed max-w-3xl mx-auto">
+        LIJO Papad started in a small courtyard kitchen in Bangalore, where our great-grandmother mixed and sun-dried the very first batch by hand. Six decades on, we still roll every papad the same way she taught us — no shortcuts, no factory lines, just a family recipe passed from one generation to the next. Every disc that reaches your door is still hand-pressed, sun-dried, and packed by people who grew up doing exactly that.
+      </p>
+      <div className="grid grid-cols-3 gap-8 mt-14 max-w-2xl mx-auto">
+        <div>
+          <p className="text-3xl md:text-4xl font-black tracking-tight">4</p>
+          <p className="text-sm text-gray-500 mt-1">Generations</p>
+        </div>
+        <div>
+          <p className="text-3xl md:text-4xl font-black tracking-tight">100%</p>
+          <p className="text-sm text-gray-500 mt-1">Handmade</p>
+        </div>
+        <div>
+          <p className="text-3xl md:text-4xl font-black tracking-tight">60+</p>
+          <p className="text-sm text-gray-500 mt-1">Years of Tradition</p>
+        </div>
+      </div>
+    </section>
   </div>
 )}
 
