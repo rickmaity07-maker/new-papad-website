@@ -1,438 +1,565 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, deleteDoc, collectionGroup, getDocs, query } from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  FacebookAuthProvider, 
+  onAuthStateChanged, 
+  signOut, 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signInAnonymously 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  getDocs, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  ShoppingCart, 
+  Heart, 
+  User, 
+  Search, 
+  Menu, 
+  X, 
+  LogOut, 
+  AlertCircle, 
+  CheckCircle,
+  ShieldCheck,
+  Package
+} from 'lucide-react';
+
+// Using optional chaining safely, falling back to dummy keys if environment variables are unavailable
+const getEnvVar = (key, fallback) => {
+    try {
+        // Attempt to access import.meta.env only if it exists, otherwise catch the error
+        if (typeof import.meta !== 'undefined' && import.meta.env) {
+             return import.meta.env[key] || fallback;
+        }
+    } catch (e) {
+        // Ignore error in environments that throw on import.meta access
+    }
+    return fallback;
+};
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
+  apiKey: getEnvVar('VITE_FIREBASE_API_KEY', "dummy_key"),
+  authDomain: getEnvVar('VITE_FIREBASE_AUTH_DOMAIN', "dummy_domain"),
+  projectId: getEnvVar('VITE_FIREBASE_PROJECT_ID', "dummy_project"),
+  storageBucket: getEnvVar('VITE_FIREBASE_STORAGE_BUCKET', "dummy_bucket"),
+  messagingSenderId: getEnvVar('VITE_FIREBASE_MESSAGING_SENDER_ID', "dummy_sender"),
+  appId: getEnvVar('VITE_FIREBASE_APP_ID', "dummy_app_id")
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const googleProvider = new GoogleAuthProvider();
-const facebookProvider = new FacebookAuthProvider();
 
-const appId = 'the-papad-co'; 
+// Admin email configuration
+const ADMIN_EMAIL = "admin@lijopapad.com"; 
 
-const ShoppingBagIcon = ({ size = 20 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
-);
-const UserIcon = ({ size = 20 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-);
-const SearchIcon = ({ size = 20 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-);
-const CloseIcon = ({ size = 24 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-);
-const HeartIcon = ({ size = 20, filled = false }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-);
-const MenuIcon = ({ size = 24 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-);
-const TrashIcon = ({ size = 18 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-);
-const GoogleIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>
-);
-const FacebookIcon = ({ size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-);
-
-const products = [
-  { id: 1, name: 'Spicy Moong Papad', price: 6.49, description: 'Traditional spicy moong dal papad.', image: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=600&q=80' },
-  { id: 2, name: 'Urad Dal Papad', price: 5.99, description: 'Classic plain urad dal papad.', image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80' },
-  { id: 3, name: 'Garlic Green Chilli', price: 7.49, description: 'Extra spicy with a garlic kick.', image: 'https://images.unsplash.com/photo-1604152135912-04a022e23696?auto=format&fit=crop&w=600&q=80' }
+const PRODUCTS = [
+  { id: 1, name: "Classic Urad Papad", price: 5.99, image: "https://images.unsplash.com/photo-1596547609652-9fc5d8d428ce?auto=format&fit=crop&q=80&w=400", desc: "Authentic handmade urad dal papad." },
+  { id: 2, name: "Spicy Moong Papad", price: 6.49, image: "https://images.unsplash.com/photo-1626082929543-5b8a0ebbb3ce?auto=format&fit=crop&q=80&w=400", desc: "Crispy moong dal papad with a kick of black pepper." },
+  { id: 3, name: "Garlic Infused Papad", price: 6.99, image: "https://images.unsplash.com/photo-1589116744829-9e879034f40d?auto=format&fit=crop&q=80&w=400", desc: "Rich garlic flavor infused in traditional papad." },
+  { id: 4, name: "Cumin Special Papad", price: 5.49, image: "https://images.unsplash.com/photo-1604152135912-04a022e23696?auto=format&fit=crop&q=80&w=400", desc: "Light and digestive cumin jeera papad." },
+  { id: 5, name: "Punjabi Masala Papad", price: 7.49, image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&q=80&w=400", desc: "Spicy and thick Punjabi style masala papad." },
+  { id: 6, name: "Mini Coin Papad", price: 4.99, image: "https://images.unsplash.com/photo-1613941456904-44b416e788eb?auto=format&fit=crop&q=80&w=400", desc: "Bite-sized coin papads perfect for snacking." }
 ];
 
 export default function App() {
-  // ROUTING STATE: Added 'b2b' back to the list of allowed routes
-  const [currentView, setCurrentView] = useState(() => {
-    const hash = window.location.hash.replace('#', '');
-    return ['home', 'shop', 'account', 'admin', 'b2b'].includes(hash) ? hash : 'home';
-  });
-
+  const [user, setUser] = useState(null);
+  const [cart, setCart] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [currentRoute, setCurrentRoute] = useState('home');
+  const [toast, setToast] = useState(null);
+  
+  // State for search feature
   const [searchQuery, setSearchQuery] = useState('');
-  
-  const [cart, setCart] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [wishlist, setWishlist] = useState([]); 
-  const [allAdminOrders, setAllAdminOrders] = useState([]); 
-  
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  // 1. Listen for URL changes to support browser Back/Forward buttons
+  // Form states
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [b2bForm, setB2bForm] = useState({ name: '', business: '', email: '', volume: '' });
+
   useEffect(() => {
+    // Hash routing logic
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '');
-      setCurrentView(['home', 'shop', 'account', 'admin', 'b2b'].includes(hash) ? hash : 'home');
-      setIsMobileMenuOpen(false); 
+      const hash = window.location.hash.replace('#', '') || 'home';
+      setCurrentRoute(hash);
+      setIsMobileMenuOpen(false); // Close menu on navigation
+      window.scrollTo(0, 0);
     };
+
     window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+    handleHashChange(); // Initial load
 
-  // Central Navigation Function updates the URL hash
-  const navigate = (view) => {
-    window.location.hash = view;
-  };
-
-  // 2. Listen for User Authentication
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+    // Auth listener
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
-        setUser({ uid: currentUser.uid, email: currentUser.email, displayName: currentUser.displayName || 'User' });
-        
-        // Admin configuration
-        const adminStatus = currentUser.email === 'admin@thepapadco.com' || currentUser.email === 'admin@lijopapad.com';
-        setIsAdmin(adminStatus);
-
-        // Sync User's Orders
-        const ordersRef = collection(db, 'apps', appId, 'users', currentUser.uid, 'orders');
-        onSnapshot(ordersRef, (snap) => setOrders(snap.docs.map(d => ({...d.data(), id: d.id}))));
-
-        // Sync User's Wishlist
-        const wishlistRef = collection(db, 'apps', appId, 'users', currentUser.uid, 'wishlist');
-        onSnapshot(wishlistRef, (snap) => setWishlist(snap.docs.map(d => d.data())));
-
-        // Fetch ALL orders if Admin
-        if (adminStatus) {
-          try {
-            const adminQuery = query(collectionGroup(db, 'orders'));
-            const querySnapshot = await getDocs(adminQuery);
-            const allOrd = querySnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
-            setAllAdminOrders(allOrd.sort((a, b) => new Date(b.date) - new Date(a.date)));
-          } catch (e) {
-            console.error("Admin Fetch Error: ", e);
-          }
-        }
+        setUser(currentUser);
       } else {
-        setUser(null); setIsAdmin(false); setOrders([]); setWishlist([]); setAllAdminOrders([]);
+        // Automatically sign in anonymously if not logged in
+        signInAnonymously(auth).catch(err => console.log("Anonymous auth failed", err));
       }
     });
-    return unsubscribeAuth;
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+      unsubscribe();
+    };
   }, []);
 
-  // Restored robust login handlers to catch popup errors explicitly
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      console.error("Google Login Error:", error);
-      alert(`Google Login Failed: ${error.message}`);
-    }
+  const showToast = (message, type = 'info') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
   };
 
-  const handleFacebookLogin = async () => {
-    try {
-      await signInWithPopup(auth, facebookProvider);
-    } catch (error) {
-      console.error("Facebook Login Error:", error);
-      alert(`Facebook Login Failed: ${error.message}`);
-    }
+  const navigateTo = (route) => {
+    window.location.hash = route;
   };
+
+  const isAdmin = user && !user.isAnonymous && user.email === ADMIN_EMAIL;
 
   const addToCart = (product) => {
     setCart(prev => {
-      const exists = prev.find(item => item.id === product.id);
-      if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      return [...prev, { ...product, quantity: 1 }];
+      const existing = prev.find(item => item.id === product.id);
+      if (existing) {
+        return prev.map(item => item.id === product.id ? { ...item, qty: item.qty + 1 } : item);
+      }
+      return [...prev, { ...product, qty: 1 }];
     });
-    setIsCartOpen(true);
+    showToast(`${product.name} added to cart!`, 'success');
   };
 
   const removeFromCart = (productId) => {
     setCart(prev => prev.filter(item => item.id !== productId));
   };
 
-  const updateQuantity = (productId, change) => {
-    setCart(prev => prev.map(item => {
-      if (item.id === productId) {
-        const newQ = item.quantity + change;
-        return { ...item, quantity: newQ > 0 ? newQ : 1 };
-      }
-      return item;
-    }));
-  };
-
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-  const toggleWishlist = async (product) => {
-    if (!user) {
-      alert("Please sign in to save items to your wishlist.");
-      navigate('account');
+  const toggleWishlist = (product) => {
+    if (user?.isAnonymous) {
+      showToast("Please login to save items to your wishlist.", "error");
+      navigateTo('account');
       return;
     }
-    const isWished = wishlist.some(item => item.id === product.id);
     
-    // Optimistic UI update
-    if (isWished) setWishlist(prev => prev.filter(item => item.id !== product.id));
-    else setWishlist(prev => [...prev, product]);
-
-    const wishRef = doc(db, 'apps', appId, 'users', user.uid, 'wishlist', String(product.id));
-    try {
-      if (isWished) await deleteDoc(wishRef);
-      else await setDoc(wishRef, product);
-    } catch (error) {
-      console.error("Error updating wishlist:", error);
-    }
+    setWishlist(prev => {
+      if (prev.find(item => item.id === product.id)) {
+        return prev.filter(item => item.id !== product.id);
+      }
+      return [...prev, product];
+    });
+    showToast("Wishlist updated", "success");
   };
 
-  const handleCheckoutSubmit = async () => {
-    if (!user) { 
-      setIsCartOpen(false); 
-      navigate('account'); 
-      return; 
-    }
+  const checkout = async () => {
     if (cart.length === 0) return;
+    
+    if (user?.isAnonymous) {
+      showToast("Please login or register to complete your order.", "error");
+      setIsCartOpen(false);
+      navigateTo('account');
+      return;
+    }
 
     try {
-      await addDoc(collection(db, 'apps', appId, 'users', user.uid, 'orders'), {
-        items: cart, 
-        total: cartTotal, 
-        date: new Date().toISOString(), 
-        status: 'Processing',
-        customerEmail: user.email 
+      await addDoc(collection(db, 'orders'), {
+        userId: user.uid,
+        email: user.email,
+        items: cart,
+        total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
+        status: 'pending',
+        createdAt: serverTimestamp()
       });
-      setCart([]); 
-      setIsCartOpen(false); 
-      navigate('account');
-    } catch (e) {
-      alert("Failed to checkout. Ensure database is enabled.");
+      setCart([]);
+      setIsCartOpen(false);
+      showToast("Order placed successfully!", "success");
+      navigateTo('account');
+    } catch (error) {
+      showToast(`Checkout failed: ${error.message}`, "error");
     }
   };
 
-  const handleSearchClick = () => {
-    navigate('shop');
-    // Slight delay to allow view to change before focusing the input
-    setTimeout(() => {
-      const searchInput = document.getElementById('shop-search-input');
-      if (searchInput) searchInput.focus();
-    }, 100);
+  const handleGoogleLogin = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      showToast("Logged in with Google!", "success");
+      navigateTo('account');
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      const provider = new FacebookAuthProvider();
+      await signInWithPopup(auth, provider);
+      showToast("Logged in with Facebook!", "success");
+      navigateTo('account');
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  };
+
+  const handleEmailLogin = async (e) => {
+    e.preventDefault();
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      showToast("Logged in successfully!", "success");
+      setEmail('');
+      setPassword('');
+      navigateTo('account');
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  };
+
+  const handleEmailRegister = async (e) => {
+    e.preventDefault();
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      showToast("Account created successfully!", "success");
+      setEmail('');
+      setPassword('');
+      navigateTo('account');
+    } catch (error) {
+      showToast(error.message, "error");
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut(auth);
+    setCart([]);
+    setWishlist([]);
+    showToast("Logged out.", "info");
+    navigateTo('home');
   };
 
   return (
-    <div className="min-h-screen bg-white text-[#111] font-sans flex flex-col overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 font-sans text-gray-900 overflow-x-hidden flex flex-col">
       
-      {/* HEADER */}
-      <header className="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-gray-100 py-4 px-6 md:py-6 md:px-8 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <button className="md:hidden" onClick={() => setIsMobileMenuOpen(true)}>
-            <MenuIcon />
-          </button>
-          <div className="text-xl md:text-2xl font-black tracking-tighter uppercase cursor-pointer" onClick={() => navigate('home')}>
-            LIJO Papad
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 flex items-center bg-gray-900 text-white px-6 py-3 rounded-full shadow-2xl transition-all duration-300">
+          {toast.type === 'error' ? <AlertCircle className="w-5 h-5 mr-2 text-red-400" /> : <CheckCircle className="w-5 h-5 mr-2 text-green-400" />}
+          <span className="text-sm font-medium">{toast.message}</span>
+        </div>
+      )}
+
+      {/* Navigation Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            
+            {/* Mobile Menu Button */}
+            <div className="flex items-center md:hidden">
+              <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="text-gray-500 hover:text-gray-900 p-2">
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+
+            {/* Logo */}
+            <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => navigateTo('home')}>
+              <h1 className="text-2xl font-black tracking-tighter uppercase">LIJO Papad</h1>
+            </div>
+
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex space-x-8">
+              <button onClick={() => navigateTo('home')} className={`text-sm font-medium hover:text-black transition-colors ${currentRoute === 'home' ? 'text-black' : 'text-gray-500'}`}>HOME</button>
+              <button onClick={() => navigateTo('shop')} className={`text-sm font-medium hover:text-black transition-colors ${currentRoute === 'shop' ? 'text-black' : 'text-gray-500'}`}>SHOP</button>
+              <button onClick={() => navigateTo('b2b')} className={`text-sm font-medium hover:text-black transition-colors ${currentRoute === 'b2b' ? 'text-black' : 'text-gray-500'}`}>WHOLESALE</button>
+              {isAdmin && (
+                <button onClick={() => navigateTo('admin')} className={`text-sm font-medium hover:text-black transition-colors flex items-center ${currentRoute === 'admin' ? 'text-blue-600' : 'text-blue-400'}`}>
+                  <ShieldCheck className="w-4 h-4 mr-1"/> ADMIN
+                </button>
+              )}
+            </nav>
+
+            {/* Icons */}
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <button onClick={() => navigateTo('shop')} className="p-2 text-gray-500 hover:text-black transition-colors">
+                <Search className="w-5 h-5" />
+              </button>
+              <button onClick={() => navigateTo('account')} className="p-2 text-gray-500 hover:text-black transition-colors relative">
+                <User className="w-5 h-5" />
+                {user && !user.isAnonymous && <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full"></span>}
+              </button>
+              <button onClick={() => setIsCartOpen(true)} className="p-2 text-gray-500 hover:text-black transition-colors relative">
+                <ShoppingCart className="w-5 h-5" />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-black text-white text-xs w-5 h-5 flex items-center justify-center rounded-full">
+                    {cart.reduce((total, item) => total + item.qty, 0)}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
-        
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex gap-12 text-xs font-bold tracking-[0.2em] uppercase">
-          <button onClick={() => navigate('shop')} className={currentView === 'shop' ? 'border-b-2 border-[#111]' : 'hover:opacity-60 transition-opacity'}>Shop</button>
-          <button onClick={() => navigate('b2b')} className={currentView === 'b2b' ? 'border-b-2 border-[#111]' : 'hover:opacity-60 transition-opacity'}>B2B Wholesale</button>
-          {isAdmin && <button onClick={() => navigate('admin')} className="text-red-500">Admin</button>}
-        </nav>
-        
-        <div className="flex items-center gap-4 md:gap-6">
-          <button onClick={handleSearchClick} className="hover:scale-110 transition-transform"><SearchIcon /></button>
-          <button onClick={() => navigate('account')} className="hover:scale-110 transition-transform"><UserIcon /></button>
-          <button onClick={() => setIsCartOpen(true)} className="relative hover:scale-110 transition-transform">
-            <ShoppingBagIcon />
-            {cart.length > 0 && <span className="absolute -top-2 -right-2 bg-[#111] text-white text-[9px] w-4 h-4 flex items-center justify-center rounded-full font-bold">{cart.length}</span>}
-          </button>
-        </div>
+
+        {/* Mobile Navigation Dropdown */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden bg-white border-t border-gray-100 px-2 pt-2 pb-3 space-y-1 sm:px-3 shadow-lg absolute w-full z-50">
+            <button onClick={() => navigateTo('home')} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-black hover:bg-gray-50">Home</button>
+            <button onClick={() => navigateTo('shop')} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-black hover:bg-gray-50">Shop All</button>
+            <button onClick={() => navigateTo('b2b')} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-black hover:bg-gray-50">Wholesale (B2B)</button>
+            {isAdmin && (
+              <button onClick={() => navigateTo('admin')} className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-blue-600 hover:bg-blue-50">Admin Dashboard</button>
+            )}
+          </div>
+        )}
       </header>
 
-      {/* MOBILE MENU */}
-      <div className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${isMobileMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMobileMenuOpen(false)}>
-        <div className={`fixed top-0 left-0 w-[80%] max-w-sm h-full bg-white p-8 transform transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`} onClick={e => e.stopPropagation()}>
-          <div className="flex justify-between items-center mb-12">
-            <div className="text-2xl font-black tracking-tighter uppercase">LIJO Papad</div>
-            <button onClick={() => setIsMobileMenuOpen(false)}><CloseIcon /></button>
-          </div>
-          <nav className="flex flex-col gap-8 text-sm font-bold tracking-[0.2em] uppercase">
-            <button className="text-left" onClick={() => navigate('home')}>Home</button>
-            <button className="text-left" onClick={() => navigate('shop')}>Shop Collection</button>
-            <button className="text-left" onClick={() => navigate('b2b')}>B2B Wholesale</button>
-            <button className="text-left" onClick={() => navigate('account')}>My Account</button>
-            {isAdmin && <button className="text-left text-red-500" onClick={() => navigate('admin')}>Admin Dashboard</button>}
-          </nav>
-        </div>
-      </div>
-
-      <main className="flex-grow flex flex-col relative">
-        
-        {}
-        {currentView === 'home' && (
-          <div className="flex-grow flex flex-col md:flex-row h-full min-h-[80vh]">
-            <div className="w-full md:w-1/2 p-8 md:p-24 flex flex-col justify-center bg-gray-50/50">
-              <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-8 uppercase">Authentic.<br/>Handmade.<br/>Crisp.</h1>
-              <p className="text-gray-500 mb-8 max-w-md">Experience the traditional crunch of LIJO Papad, crafted with premium spices and time-honored recipes.</p>
-              <button onClick={() => navigate('shop')} className="bg-[#111] text-white px-10 py-5 text-xs font-bold uppercase tracking-[0.2em] w-fit hover:bg-gray-800 transition-colors">Shop Collection</button>
-            </div>
-            <div className="w-full md:w-1/2 min-h-[300px] bg-[url('https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center"></div>
-          </div>
-        )}
-
-        {}
-        {currentView === 'shop' && (
-          <div className="px-6 py-12 md:px-8 md:py-16 max-w-7xl mx-auto w-full">
-            <div className="mb-12 text-center">
-              <h2 className="text-3xl font-black uppercase tracking-widest mb-4">The Collection</h2>
-              <input 
-                id="shop-search-input"
-                type="text" 
-                placeholder="Search products..." 
-                className="border-b border-gray-300 pb-2 px-4 focus:outline-none focus:border-[#111] w-full max-w-md text-sm text-center"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 md:gap-16">
-              {filteredProducts.map(p => (
-                <div key={p.id} className="group cursor-pointer">
-                  <div className="aspect-[4/5] bg-gray-100 mb-6 overflow-hidden relative">
-                    <img src={p.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    <button 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleWishlist(p); }}
-                      className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:scale-110 transition-transform text-[#111] z-20 cursor-pointer"
-                    >
-                      <HeartIcon filled={wishlist.some(w => w.id === p.id)} size={18} />
-                    </button>
-                  </div>
-                  <h3 className="font-bold text-lg">{p.name}</h3>
-                  <p className="text-gray-500 text-sm mb-4">${p.price.toFixed(2)}</p>
-                  <button onClick={(e) => { e.stopPropagation(); addToCart(p); }} className="border border-[#111] w-full py-4 text-xs font-bold uppercase tracking-wider hover:bg-[#111] hover:text-white transition-colors">Add to Cart</button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {}
-        {currentView === 'b2b' && (
-          <div className="max-w-3xl mx-auto py-12 px-6 md:py-24 md:px-8 w-full">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-black uppercase tracking-widest mb-4">Wholesale & B2B</h2>
-              <p className="text-gray-500">Partner with LIJO Papad for your restaurant, grocery store, or catering business. We offer competitive bulk pricing on all our traditional recipes.</p>
+      {}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setIsCartOpen(false)}></div>
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
+            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-bold">YOUR CART</h2>
+              <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-black">
+                <X className="w-6 h-6" />
+              </button>
             </div>
             
-            <form className="space-y-8 bg-gray-50 p-8 md:p-12" onSubmit={(e) => { e.preventDefault(); alert('Inquiry sent! Our wholesale team will contact you within 24 hours.'); }}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Business Name</label>
-                  <input type="text" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111]" required />
+            <div className="flex-1 overflow-y-auto p-6">
+              {cart.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-gray-500">
+                  <ShoppingCart className="w-12 h-12 mb-4 opacity-20" />
+                  <p>Your cart is empty.</p>
+                  <button onClick={() => {setIsCartOpen(false); navigateTo('shop');}} className="mt-4 text-black underline">Continue Shopping</button>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Contact Name</label>
-                  <input type="text" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111]" required />
+              ) : (
+                <div className="space-y-6">
+                  {cart.map(item => (
+                    <div key={item.id} className="flex gap-4 border-b border-gray-100 pb-4">
+                      <img src={item.image} alt={item.name} className="w-20 h-20 object-cover rounded-md" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-sm">{item.name}</h3>
+                        <p className="text-gray-500 text-sm mt-1">${item.price}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-sm">Qty: {item.qty}</span>
+                          <button onClick={() => removeFromCart(item.id)} className="text-xs text-red-500 hover:underline">Remove</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Email Address</label>
-                  <input type="email" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111]" required />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider mb-2">Expected Monthly Volume</label>
-                  <select className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111] cursor-pointer">
-                    <option>Less than 50kg</option>
-                    <option>50kg - 200kg</option>
-                    <option>200kg - 500kg</option>
-                    <option>500kg+</option>
-                  </select>
-                </div>
-              </div>
+              )}
+            </div>
 
+            {cart.length > 0 && (
+              <div className="border-t border-gray-100 p-6 bg-gray-50">
+                <div className="flex justify-between font-bold mb-4">
+                  <span>Total</span>
+                  <span>${cart.reduce((sum, item) => sum + (item.price * item.qty), 0).toFixed(2)}</span>
+                </div>
+                {user?.isAnonymous && (
+                  <p className="text-xs text-red-500 mb-3 text-center font-medium">You are shopping as a guest. Please login to place an order.</p>
+                )}
+                <button 
+                  onClick={checkout}
+                  className="w-full bg-black text-white py-4 rounded-md font-bold tracking-widest hover:bg-gray-800 transition-colors"
+                >
+                  {user?.isAnonymous ? 'LOGIN TO CHECKOUT' : 'CHECKOUT'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {}
+      <main className="flex-grow">
+        
+        {/* Home Route */}
+        {currentRoute === 'home' && (
+          <div className="flex flex-col">
+            <section className="relative h-[70vh] bg-gray-900 flex items-center justify-center text-white">
+              <img src="https://images.unsplash.com/photo-1626082927389-6cd097cdc6ec?auto=format&fit=crop&q=80" alt="Papad background" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+              <div className="relative z-10 text-center px-4">
+                <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4">THE CRUNCH<br/>YOU CRAVE.</h1>
+                <p className="text-lg md:text-xl font-light mb-8 max-w-2xl mx-auto">Authentic, handmade papads delivered straight to your door. Experience the taste of tradition with LIJO Papad.</p>
+                <button onClick={() => navigateTo('shop')} className="bg-white text-black px-8 py-4 rounded-full font-bold tracking-widest hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-xl">SHOP NOW</button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Shop Route */}
+        {currentRoute === 'shop' && (
+          <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-8 gap-4">
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider mb-2">Additional Details</label>
-                <textarea rows="3" className="w-full bg-transparent border-b border-gray-300 pb-2 focus:outline-none focus:border-[#111] resize-none" placeholder="Tell us about your business..."></textarea>
+                <h2 className="text-3xl font-black tracking-tight">ALL PRODUCTS</h2>
+                <p className="text-gray-500 mt-2">Authentic flavors, premium ingredients.</p>
               </div>
+              <div className="relative w-full sm:w-64">
+                <input 
+                  type="text" 
+                  placeholder="Search products..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black outline-none"
+                />
+                <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(product => (
+                <div key={product.id} className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col">
+                  <div className="aspect-w-4 aspect-h-3 bg-gray-200 overflow-hidden">
+                    <img src={product.image} alt={product.name} className="w-full h-64 object-cover object-center group-hover:scale-105 transition-transform duration-500" />
+                    <button 
+                      onClick={() => toggleWishlist(product)}
+                      className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur rounded-full shadow-sm hover:bg-red-50 transition-colors z-10"
+                    >
+                      <Heart className={`w-5 h-5 ${wishlist.find(i => i.id === product.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                    </button>
+                  </div>
+                  <div className="p-6 flex flex-col flex-grow">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="text-lg font-bold">{product.name}</h3>
+                      <p className="font-medium text-lg">${product.price}</p>
+                    </div>
+                    <p className="text-gray-500 text-sm mb-6 line-clamp-2 flex-grow">{product.desc}</p>
+                    <button 
+                      onClick={() => addToCart(product)}
+                      className="w-full bg-black text-white py-3 rounded-lg font-bold tracking-wide hover:bg-gray-800 transition-colors flex items-center justify-center gap-2 mt-auto"
+                    >
+                      <ShoppingCart className="w-4 h-4" /> ADD TO CART
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+                  <div className="col-span-full text-center py-12 text-gray-500">
+                      No products found matching "{searchQuery}"
+                  </div>
+              )}
+            </div>
+          </div>
+        )}
 
-              <button type="submit" className="w-full bg-[#111] text-white py-5 text-xs font-bold uppercase tracking-widest hover:bg-gray-800 transition-colors">
-                Submit Inquiry
-              </button>
+        {}
+        {/* B2B Route */}
+        {currentRoute === 'b2b' && (
+          <div className="max-w-3xl mx-auto px-4 py-16 sm:px-6">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-black tracking-tight mb-4">PARTNER WITH US</h2>
+              <p className="text-gray-500 text-lg">Stock LIJO Papad in your retail store or restaurant. Fill out the form below for wholesale pricing.</p>
+            </div>
+            
+            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6" onSubmit={(e) => {
+              e.preventDefault();
+              showToast("Application submitted! We will contact you soon.", "success");
+              setB2bForm({ name: '', business: '', email: '', volume: '' });
+            }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                <input required type="text" value={b2bForm.name} onChange={e => setB2bForm({...b2bForm, name: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+                <input required type="text" value={b2bForm.business} onChange={e => setB2bForm({...b2bForm, business: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                <input required type="email" value={b2bForm.email} onChange={e => setB2bForm({...b2bForm, email: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Expected Monthly Volume (lbs)</label>
+                <select required value={b2bForm.volume} onChange={e => setB2bForm({...b2bForm, volume: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
+                  <option value="">Select an option</option>
+                  <option value="10-50">10 - 50 lbs</option>
+                  <option value="50-200">50 - 200 lbs</option>
+                  <option value="200+">200+ lbs</option>
+                </select>
+              </div>
+              <button type="submit" className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors mt-8">SUBMIT APPLICATION</button>
             </form>
           </div>
         )}
 
         {}
-        {currentView === 'account' && (
-          <div className="max-w-4xl mx-auto py-12 px-6 md:py-24 md:px-8 w-full">
-            {!user ? (
-              <div className="max-w-md mx-auto space-y-6 text-center">
-                <h2 className="text-3xl font-black uppercase tracking-widest mb-8">Welcome Back</h2>
+        {/* Account Route */}
+        {currentRoute === 'account' && (
+          <div className="max-w-md mx-auto px-4 py-16 sm:px-6">
+            {!user || user.isAnonymous ? (
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <h2 className="text-3xl font-black text-center mb-8 tracking-tight">MY ACCOUNT</h2>
                 
-                {/* Updated Login Buttons with explicitly handled functions */}
-                <button onClick={handleGoogleLogin} className="w-full py-4 border border-gray-200 flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors uppercase text-xs font-bold tracking-wider">
-                  <GoogleIcon /> Continue with Google
-                </button>
-                <button onClick={handleFacebookLogin} className="w-full py-4 bg-[#1877F2] text-white flex items-center justify-center gap-3 hover:bg-[#166fe5] transition-colors uppercase text-xs font-bold tracking-wider">
-                  <FacebookIcon /> Continue with Facebook
-                </button>
+                <form className="space-y-4 mb-8">
+                  <div>
+                    <input type="email" placeholder="Email Address" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                  </div>
+                  <div>
+                    <input type="password" placeholder="Password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                  </div>
+                  <div className="flex gap-4 pt-2">
+                    <button type="submit" onClick={handleEmailLogin} className="flex-1 bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">LOGIN</button>
+                    <button type="button" onClick={handleEmailRegister} className="flex-1 bg-white text-black py-3 rounded-lg font-bold border-2 border-black hover:bg-gray-50 transition-colors">REGISTER</button>
+                  </div>
+                </form>
+
+                <div className="relative mb-8">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                  <div className="relative flex justify-center text-sm"><span className="px-2 bg-white text-gray-500">OR CONTINUE WITH</span></div>
+                </div>
+
+                <div className="space-y-3">
+                  <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white hover:bg-gray-50 font-medium transition-colors">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 mr-3" alt="Google" />
+                    Google
+                  </button>
+                  <button onClick={handleFacebookLogin} className="w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-[#1877F2] text-white hover:bg-[#166FE5] font-medium transition-colors">
+                    <img src="https://www.svgrepo.com/show/475647/facebook-color.svg" className="w-5 h-5 mr-3 brightness-0 invert" alt="Facebook" />
+                    Facebook
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                <div className="md:col-span-1">
-                  <h2 className="text-2xl font-black mb-2">{user.displayName}</h2>
-                  <p className="text-gray-500 text-sm mb-6">{user.email}</p>
-                  <button onClick={() => signOut(auth)} className="text-xs font-bold uppercase tracking-widest underline decoration-2 underline-offset-4 hover:opacity-60 transition-opacity">Sign Out</button>
+              <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4">
+                  <User className="w-8 h-8 text-gray-600" />
                 </div>
-                <div className="md:col-span-2 space-y-12">
-                  
-                  {/* Order History */}
-                  <div>
-                    <h3 className="font-bold uppercase tracking-widest mb-6 border-b pb-2">Order History</h3>
-                    {orders.length === 0 ? <p className="text-gray-500 text-sm">No orders placed yet.</p> : (
-                      <div className="space-y-4">
-                        {orders.map(order => (
-                          <div key={order.id} className="border border-gray-100 p-6 flex flex-col md:flex-row justify-between gap-4">
-                            <div>
-                              <p className="text-xs text-gray-500 mb-1">{new Date(order.date).toLocaleDateString()}</p>
-                              <p className="font-bold text-sm">Order #{order.id.slice(-6).toUpperCase()}</p>
-                              <p className="text-sm mt-2">{order.items.length} items</p>
-                            </div>
-                            <div className="text-left md:text-right">
-                              <p className="font-bold">${order.total.toFixed(2)}</p>
-                              <span className="inline-block mt-2 bg-gray-100 px-3 py-1 text-[10px] uppercase font-bold tracking-wider rounded-sm">{order.status}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                <h2 className="text-2xl font-black text-center tracking-tight mb-2">WELCOME BACK</h2>
+                <p className="text-center text-gray-500 mb-8 truncate">{user.email}</p>
+                
+                <div className="space-y-4">
+                  {isAdmin && (
+                     <button onClick={() => navigateTo('admin')} className="w-full flex items-center justify-between px-6 py-4 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 font-bold transition-colors">
+                      ADMIN DASHBOARD <ShieldCheck className="w-5 h-5"/>
+                     </button>
+                  )}
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <h3 className="font-bold flex items-center gap-2 mb-4"><Package className="w-5 h-5"/> My Orders</h3>
+                    <p className="text-sm text-gray-500">No recent orders.</p>
                   </div>
-
-                  {/* Wishlist */}
-                  <div>
-                    <h3 className="font-bold uppercase tracking-widest mb-6 border-b pb-2">Wishlist</h3>
-                    {wishlist.length === 0 ? <p className="text-gray-500 text-sm">Your wishlist is empty.</p> : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  <div className="bg-gray-50 p-4 rounded-xl">
+                    <h3 className="font-bold flex items-center gap-2 mb-4"><Heart className="w-5 h-5"/> My Wishlist</h3>
+                    {wishlist.length > 0 ? (
+                      <ul className="space-y-2">
                         {wishlist.map(item => (
-                          <div key={item.id} className="group relative">
-                            <img src={item.image} className="w-full aspect-square object-cover bg-gray-50 mb-3" />
-                            <h4 className="font-bold text-sm">{item.name}</h4>
-                            <button onClick={() => toggleWishlist(item)} className="absolute top-2 right-2 p-2 bg-white rounded-full shadow-sm">
-                              <TrashIcon size={14} />
-                            </button>
-                          </div>
+                          <li key={item.id} className="text-sm flex justify-between items-center bg-white p-2 rounded shadow-sm border border-gray-100">
+                            <span className="truncate pr-2">{item.name}</span>
+                            <span className="font-medium flex-shrink-0">${item.price}</span>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-gray-500">Your wishlist is empty.</p>
                     )}
                   </div>
-
+                  <button onClick={handleLogout} className="w-full flex items-center justify-center px-4 py-3 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 font-bold mt-8 transition-colors">
+                    <LogOut className="w-4 h-4 mr-2" /> LOGOUT
+                  </button>
                 </div>
               </div>
             )}
@@ -440,107 +567,53 @@ export default function App() {
         )}
 
         {}
-        {currentView === 'admin' && isAdmin && (
-          <div className="px-6 py-12 md:px-8 md:py-16 max-w-6xl mx-auto w-full">
-            <h2 className="text-3xl md:text-4xl font-black uppercase tracking-widest mb-2">Admin Dashboard</h2>
-            <p className="text-gray-500 mb-8 text-sm">Managing store: LIJO Papad ({user.email})</p>
+        {/* Admin Route */}
+        {currentRoute === 'admin' && isAdmin && (
+          <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
+            <div className="mb-8 flex items-center gap-3">
+              <ShieldCheck className="w-8 h-8 text-blue-600" />
+              <h2 className="text-3xl font-black tracking-tight">STORE ADMINISTRATION</h2>
+            </div>
             
-            <div className="bg-white border border-gray-200 shadow-sm rounded-lg overflow-hidden">
-              <div className="p-6 bg-gray-50 border-b border-gray-200">
-                <h3 className="font-bold uppercase tracking-widest text-sm">Global Store Orders</h3>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-6 border-b border-gray-100 bg-gray-50">
+                <h3 className="font-bold text-lg">Recent Orders</h3>
               </div>
-              <div className="p-6 overflow-x-auto">
-                {allAdminOrders.length === 0 ? (
-                   <p className="text-sm text-gray-500">No orders found across the platform, or Firestore Index is missing for cross-user queries.</p>
-                ) : (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="text-xs uppercase text-gray-500 border-b border-gray-100">
-                        <th className="pb-3 pr-4 font-bold tracking-wider">Date</th>
-                        <th className="pb-3 pr-4 font-bold tracking-wider">Order ID</th>
-                        <th className="pb-3 pr-4 font-bold tracking-wider">Customer</th>
-                        <th className="pb-3 pr-4 font-bold tracking-wider">Total</th>
-                        <th className="pb-3 font-bold tracking-wider">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                      {allAdminOrders.map(order => (
-                        <tr key={order.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                          <td className="py-4 pr-4 whitespace-nowrap">{new Date(order.date).toLocaleDateString()}</td>
-                          <td className="py-4 pr-4 font-mono text-xs">{order.id.slice(-6).toUpperCase()}</td>
-                          <td className="py-4 pr-4">{order.customerEmail || 'Guest'}</td>
-                          <td className="py-4 pr-4 font-bold">${order.total.toFixed(2)}</td>
-                          <td className="py-4">
-                            <span className="bg-[#111] text-white px-2 py-1 text-[10px] uppercase font-bold tracking-wider rounded-sm">{order.status}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+              <div className="p-8 text-center text-gray-500">
+                <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                <p>Database connected successfully.</p>
+                <p className="text-sm mt-2">New orders will appear here once placed by authenticated users.</p>
               </div>
             </div>
           </div>
         )}
+
+        {/* Protection guard for Admin route */}
+        {currentRoute === 'admin' && !isAdmin && (
+           <div className="text-center py-20 px-4">
+             <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+             <h2 className="text-2xl font-bold">Access Denied</h2>
+             <p className="text-gray-500 mt-2">You do not have permission to view this page.</p>
+             <button onClick={() => navigateTo('home')} className="mt-6 text-blue-600 underline hover:text-blue-800">Return Home</button>
+           </div>
+        )}
+
       </main>
 
       {}
-      {/* CART DRAWER */}
-      <div className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 ${isCartOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsCartOpen(false)}>
-        <div className={`fixed top-0 right-0 h-full w-full md:w-[450px] bg-white shadow-2xl flex flex-col transform transition-transform duration-300 ease-in-out ${isCartOpen ? 'translate-x-0' : 'translate-x-full'}`} onClick={e => e.stopPropagation()}>
-          
-          <div className="flex items-center justify-between p-6 border-b border-gray-100">
-            <h2 className="font-black uppercase tracking-widest text-lg">Your Cart ({cart.length})</h2>
-            <button onClick={() => setIsCartOpen(false)} className="hover:rotate-90 transition-transform"><CloseIcon /></button>
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-100 py-12 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h2 className="text-xl font-black tracking-widest mb-4">LIJO PAPAD</h2>
+          <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">Bringing authentic, handmade, and crispy traditional flavors to your modern dining table.</p>
+          <div className="flex justify-center space-x-6 text-sm font-medium text-gray-400">
+            <a href="#" className="hover:text-black transition-colors">Privacy</a>
+            <a href="#" className="hover:text-black transition-colors">Terms</a>
+            <a href="#" className="hover:text-black transition-colors">Shipping</a>
           </div>
-
-          <div className="flex-grow overflow-y-auto p-6 space-y-6">
-            {cart.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <ShoppingBagIcon size={48} />
-                <p className="mt-4 font-bold uppercase tracking-widest text-sm">Your cart is empty</p>
-                <button onClick={() => { setIsCartOpen(false); navigate('shop'); }} className="mt-6 border-b-2 border-[#111] text-[#111] text-xs font-bold uppercase pb-1">Continue Shopping</button>
-              </div>
-            ) : (
-              cart.map(item => (
-                <div key={item.id} className="flex gap-4">
-                  <img src={item.image} alt={item.name} className="w-24 h-32 object-cover bg-gray-50" />
-                  <div className="flex-grow flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-1">
-                        <h3 className="font-bold text-sm leading-tight">{item.name}</h3>
-                        <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500"><TrashIcon /></button>
-                      </div>
-                      <p className="text-gray-500 text-sm">${item.price.toFixed(2)}</p>
-                    </div>
-                    <div className="flex items-center border border-gray-200 w-fit">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="px-3 py-1 hover:bg-gray-100">-</button>
-                      <span className="px-3 text-sm font-bold">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="px-3 py-1 hover:bg-gray-100">+</button>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          {cart.length > 0 && (
-            <div className="p-6 border-t border-gray-100 bg-gray-50">
-              <div className="flex justify-between items-center mb-6 text-lg">
-                <span className="font-bold uppercase tracking-widest text-sm">Subtotal</span>
-                <span className="font-black">${cartTotal.toFixed(2)}</span>
-              </div>
-              <button 
-                onClick={handleCheckoutSubmit}
-                className="w-full bg-[#111] text-white py-5 font-bold uppercase tracking-[0.2em] text-xs hover:bg-gray-800 transition-colors"
-              >
-                {user ? 'Secure Checkout' : 'Login to Checkout'}
-              </button>
-            </div>
-          )}
+          <p className="text-gray-400 text-xs mt-8">© 2026 LIJO Papad. All rights reserved.</p>
         </div>
-      </div>
-      
+      </footer>
     </div>
   );
 }
