@@ -52,10 +52,10 @@ const ADMIN_EMAIL = "admin@lijopapad.com";
 const PRODUCTS = [
   { id: 1, name: "Classic Urad Papad", price: 5.99, image: "/Classic_Urad_Papad.jpg", desc: "Authentic handmade urad dal papad." },
   { id: 2, name: "Spicy Moong Papad", price: 6.49, image: "/Spicy_Moong_Papad.webp", desc: "Crispy moong dal papad with a kick of black pepper." },
-  { id: 3, name: "Garlic Infused Papad", price: 6.99, image: "https://images.unsplash.com/photo-1589116744829-9e879034f40d?auto=format&fit=crop&q=80&w=400", desc: "Rich garlic flavor infused in traditional papad." },
-  { id: 4, name: "Cumin Special Papad", price: 5.49, image: "https://images.unsplash.com/photo-1604152135912-04a022e23696?auto=format&fit=crop&q=80&w=400", desc: "Light and digestive cumin jeera papad." },
+  { id: 3, name: "Garlic Infused Papad", price: 6.99, image: "/salty-round-garlic-appalam-papad-without-added-preservative.webp", desc: "Rich garlic flavor infused in traditional papad." },
+  { id: 4, name: "Cumin Special Papad", price: 5.49, image: "/special_cumin_papad.webp", desc: "Light and digestive cumin jeera papad." },
   { id: 5, name: "Punjabi Masala Papad", price: 7.49, image: "/Punjabi_masala_papad.png", desc: "Spicy and thick Punjabi style masala papad." },
-  { id: 6, name: "Mini Coin Papad", price: 4.99, image: "https://images.unsplash.com/photo-1613941456904-44b416e788eb?auto=format&fit=crop&q=80&w=400", desc: "Bite-sized coin papads perfect for snacking." }
+  { id: 6, name: "Mini Coin Papad", price: 4.99, image: "/coin_papad.jpg", desc: "Bite-sized coin papads perfect for snacking." }
 ];
 
 export default function App() {
