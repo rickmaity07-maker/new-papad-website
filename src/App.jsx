@@ -58,9 +58,10 @@ const getLocal = (key, initialValue) => {
 };
 
 export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'shop', 'cart', 'checkout', 'account', 'admin'
+  const [currentView, setCurrentView] = useState('home'); // 'home', 'shop', 'cart', 'checkout', 'account', 'admin', 'wholesale'
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [wholesaleStatus, setWholesaleStatus] = useState('idle'); // 'idle' or 'success'
   
   const [cart, setCart] = useState(() => getLocal('papad_cart', []));
   const [products, setProducts] = useState(() => getLocal('papad_products', initialProducts));
@@ -125,6 +126,12 @@ export default function App() {
     setCurrentView('account');
   };
 
+  const handleWholesaleSubmit = (e) => {
+    e.preventDefault();
+    setWholesaleStatus('success');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFBF7] text-[#111111] font-sans flex flex-col selection:bg-[#111] selection:text-white">
       
@@ -141,7 +148,7 @@ export default function App() {
         {/* Center: Links */}
         <div className="hidden md:flex flex-1 justify-center gap-10">
           <button onClick={() => setCurrentView('shop')} className="text-xs font-bold tracking-[0.15em] uppercase hover:text-gray-500 transition-colors">Shop</button>
-          <button className="text-xs font-bold tracking-[0.15em] uppercase hover:text-gray-500 transition-colors">Wholesale</button>
+          <button onClick={() => { setCurrentView('wholesale'); setWholesaleStatus('idle'); }} className="text-xs font-bold tracking-[0.15em] uppercase hover:text-gray-500 transition-colors">Wholesale</button>
         </div>
 
         {/* Right: Icons */}
@@ -351,10 +358,98 @@ export default function App() {
             </button>
             <button 
               onClick={() => setCurrentView('cart')}
-              className="w-full mt-4 py-4 text-xs font-bold tracking-widest uppercase text-gray-500 hover:text-[#111] transition-colors"
+              className="w-full mt-4 py-4 text-xs font-bold tracking-widest uppercase text-gray-500 hover:text-[#111] transition-colors rounded-none"
             >
               Return to Bag
             </button>
+          </div>
+        )}
+
+        {currentView === 'wholesale' && (
+          <div className="max-w-4xl mx-auto w-full px-6 md:px-12 py-16 animate-in fade-in duration-500">
+            <div className="text-center mb-16">
+              <p className="text-[#8B5A2B] text-xs font-bold tracking-[0.25em] mb-4 uppercase">Partner With Us</p>
+              <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight mb-6">Wholesale Inquiries</h1>
+              <p className="text-gray-600 text-lg max-w-2xl mx-auto leading-relaxed">
+                Bring the authentic taste of The Papad Co. to your restaurant, grocery store, or distribution network. Fill out the application below and our B2B team will get back to you within 1-2 business days.
+              </p>
+            </div>
+
+            {wholesaleStatus === 'success' ? (
+              <div className="bg-white border border-gray-200 p-12 text-center shadow-sm">
+                <h2 className="text-2xl font-black uppercase tracking-tight mb-4">Application Received</h2>
+                <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                  Thank you for your interest in partnering with us. We have successfully received your details and will be in touch shortly.
+                </p>
+                <button 
+                  onClick={() => setCurrentView('home')}
+                  className="bg-[#111] text-white px-10 py-4 text-xs font-bold tracking-widest uppercase hover:bg-[#333] transition-colors rounded-none"
+                >
+                  Return to Home
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleWholesaleSubmit} className="space-y-8 bg-white p-8 md:p-12 border border-gray-200 shadow-sm">
+                <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-gray-200">Business Details</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Company Name *</label>
+                    <input type="text" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Contact Name *</label>
+                    <input type="text" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Email Address *</label>
+                    <input type="email" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Phone Number *</label>
+                    <input type="tel" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
+                   <div>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Business Type *</label>
+                    <select required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none">
+                      <option value="">Select a type...</option>
+                      <option value="restaurant">Restaurant / Cafe</option>
+                      <option value="grocery">Grocery / Retail</option>
+                      <option value="distributor">Distributor</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Tax ID / EIN / Resale # *</label>
+                    <input type="text" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
+                  </div>
+                </div>
+
+                <div className="pt-4">
+                  <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Estimated Monthly Volume</label>
+                  <select className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none">
+                    <option value="">Select volume...</option>
+                    <option value="under_500">$0 - $500</option>
+                    <option value="500_2000">$500 - $2,000</option>
+                    <option value="2000_plus">$2,000+</option>
+                  </select>
+                </div>
+
+                <div className="pt-4">
+                  <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Additional Information / Questions</label>
+                  <textarea rows="4" className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors resize-none rounded-none" placeholder="Tell us about your specific needs..."></textarea>
+                </div>
+
+                <div className="pt-6">
+                  <button type="submit" className="w-full bg-[#111] text-white py-5 text-xs font-bold tracking-widest uppercase hover:bg-[#333] transition-colors rounded-none">
+                    Submit Application
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         )}
 
