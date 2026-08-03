@@ -5,49 +5,36 @@ import {
   signInWithPopup, 
   GoogleAuthProvider, 
   FacebookAuthProvider, 
-  onAuthStateChanged, 
   signOut, 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInAnonymously 
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInAnonymously
 } from 'firebase/auth';
 import { 
   getFirestore, 
   collection, 
   addDoc, 
-  getDocs, 
   serverTimestamp 
 } from 'firebase/firestore';
 import { 
   ShoppingCart, 
-  Heart, 
   User, 
-  Search, 
   Menu, 
   X, 
   LogOut, 
-  AlertCircle, 
+  Package, 
+  Heart,
+  Search,
   CheckCircle,
-  ShieldCheck,
-  Package
+  AlertCircle,
+  ShieldCheck
 } from 'lucide-react';
 
-const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-// Admin email configuration
-const ADMIN_EMAIL = "admin@lijopapad.com"; 
-
+// IMPORTANT FOR VERCEL DEPLOYMENT:
+// Vercel expects import.meta.env variables. Before pushing to GitHub/Vercel, 
+// you must replace these placeholder strings with your actual variables like this:
+// apiKey: import.meta.env.VITE_FIREBASE_API_KEY
 const firebaseConfig = {
   apiKey: "YOUR_API_KEY_HERE",
   authDomain: "YOUR_AUTH_DOMAIN_HERE",
@@ -56,6 +43,13 @@ const firebaseConfig = {
   messagingSenderId: "YOUR_MESSAGING_SENDER_ID_HERE",
   appId: "YOUR_APP_ID_HERE"
 };
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Admin email configuration
+const ADMIN_EMAIL = "admin@lijopapad.com"; 
 
 const PRODUCTS = [
   { id: 1, name: "Classic Urad Papad", price: 5.99, image: "https://images.unsplash.com/photo-1596547609652-9fc5d8d428ce?auto=format&fit=crop&q=80&w=400", desc: "Authentic handmade urad dal papad." },
@@ -75,10 +69,7 @@ export default function App() {
   const [currentRoute, setCurrentRoute] = useState('home');
   const [toast, setToast] = useState(null);
   
-  // State for search feature
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Form states
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [b2bForm, setB2bForm] = useState({ name: '', business: '', email: '', volume: '' });
@@ -88,19 +79,18 @@ export default function App() {
     const handleHashChange = () => {
       const hash = window.location.hash.replace('#', '') || 'home';
       setCurrentRoute(hash);
-      setIsMobileMenuOpen(false); // Close menu on navigation
+      setIsMobileMenuOpen(false); 
       window.scrollTo(0, 0);
     };
 
     window.addEventListener('hashchange', handleHashChange);
-    handleHashChange(); // Initial load
+    handleHashChange(); 
 
     // Auth listener
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
       } else {
-        // Automatically sign in anonymously if not logged in
         signInAnonymously(auth).catch(err => console.log("Anonymous auth failed", err));
       }
     });
@@ -164,8 +154,7 @@ export default function App() {
     }
 
     try {
-      await addDoc(collection(db, 'orders'), {
-        userId: user.uid,
+      await addDoc(collection(db, `users/${user.uid}/orders`), {
         email: user.email,
         items: cart,
         total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
@@ -311,7 +300,6 @@ export default function App() {
         )}
       </header>
 
-      {}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setIsCartOpen(false)}></div>
@@ -370,7 +358,6 @@ export default function App() {
         </div>
       )}
 
-      {}
       <main className="flex-grow">
         
         {/* Home Route */}
@@ -443,7 +430,6 @@ export default function App() {
           </div>
         )}
 
-        {}
         {/* B2B Route */}
         {currentRoute === 'b2b' && (
           <div className="max-w-3xl mx-auto px-4 py-16 sm:px-6">
@@ -483,7 +469,6 @@ export default function App() {
           </div>
         )}
 
-        {}
         {/* Account Route */}
         {currentRoute === 'account' && (
           <div className="max-w-md mx-auto px-4 py-16 sm:px-6">
@@ -562,7 +547,6 @@ export default function App() {
           </div>
         )}
 
-        {}
         {/* Admin Route */}
         {currentRoute === 'admin' && isAdmin && (
           <div className="max-w-7xl mx-auto px-4 py-12 sm:px-6 lg:px-8">
@@ -596,7 +580,6 @@ export default function App() {
 
       </main>
 
-      {}
       {/* Footer */}
       <footer className="bg-white border-t border-gray-100 py-12 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
