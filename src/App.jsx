@@ -4,15 +4,15 @@ import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, sig
 
 // --- FIREBASE SETUP (REAL AUTHENTICATION) ---
 const getFirebaseConfig = () => {
-  // We now use real environment variables. 
-  // These must be set in your Vercel Dashboard for the live site to work.
+  // We use fallback strings here. This prevents the "White Screen of Death" 
+  // if your environment variables are missing or haven't loaded yet.
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "missing-api-key",
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "missing-domain",
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "missing-project-id",
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "missing-bucket",
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "missing-sender-id",
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || "missing-app-id"
   };
 };
 
