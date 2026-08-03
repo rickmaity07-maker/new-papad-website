@@ -1,74 +1,73 @@
 import React, { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, GoogleAuthProvider, FacebookAuthProvider, signInWithPopup, signOut, onAuthStateChanged, signInWithEmailAndPassword } from 'firebase/auth';
 
+// --- FIREBASE SETUP (VERCEL SAFE) ---
 const getFirebaseConfig = () => {
-  try {
-    if (typeof __firebase_config !== 'undefined') {
-      return JSON.parse(__firebase_config);
-    }
-  } catch (e) {
-    console.warn("Could not parse dynamic config, falling back.");
+  if (typeof window !== 'undefined' && window.__firebase_config) {
+    return window.__firebase_config;
   }
   return {
-    apiKey: "demo-vercel-key",
-    projectId: "demo-vercel-project",
-    appId: "demo-vercel-app"
+    apiKey: "dummy-key",
+    authDomain: "dummy.firebaseapp.com",
+    projectId: "dummy-project",
+    storageBucket: "dummy.appspot.com",
+    messagingSenderId: "123",
+    appId: "1:123:web:abc"
   };
 };
 
 const app = initializeApp(getFirebaseConfig());
 const auth = getAuth(app);
-const db = getFirestore(app);
+const googleProvider = new GoogleAuthProvider();
+const facebookProvider = new FacebookAuthProvider();
 
-const ShoppingBagIcon = ({ size = 22 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+// --- ICONS ---
+const ShoppingBagIcon = ({ size = 20 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
 );
-const UserIcon = ({ size = 22 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+const UserIcon = ({ size = 20 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
 );
-const SearchIcon = ({ size = 22 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-);
-const TrashIcon = ({ size = 18 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-);
-const LogOutIcon = ({ size = 20 }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+const SearchIcon = ({ size = 20 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
 );
 const CloseIcon = ({ size = 24 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="square" strokeLinejoin="miter"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
 );
+const GoogleIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></svg>
+);
+const FacebookIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+);
 
+// --- INITIAL DATA ---
 const initialProducts = [
-  { id: '1', name: 'Spicy Moong Papad', price: 6.49, description: 'Traditional spicy moong dal papad, roasted to perfection. A staple for every meal.', image: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&q=80&w=600' },
-  { id: '2', name: 'Urad Dal Papad', price: 5.99, description: 'Classic plain urad dal papad. Mild, crispy, and universally loved.', image: 'https://images.unsplash.com/photo-1596797038530-2c107229654b?auto=format&fit=crop&q=80&w=600' },
-  { id: '3', name: 'Garlic Green Chilli Papad', price: 7.49, description: 'Extra spicy with a strong garlic kick. For those who prefer bold flavors.', image: 'https://images.unsplash.com/photo-1626074353765-517a681e40be?auto=format&fit=crop&q=80&w=600' },
-  { id: '4', name: 'Cumin Seed Papad', price: 6.99, description: 'Infused with roasted cumin seeds for a deeply aromatic crunch.', image: 'https://images.unsplash.com/photo-1589131652438-662580fb3738?auto=format&fit=crop&q=80&w=600' },
+  { id: 1, name: 'Spicy Moong Papad', price: 6.49, description: 'Traditional spicy moong dal papad.', image: 'https://images.unsplash.com/photo-1606491956689-2ea866880c84?auto=format&fit=crop&w=600&q=80' },
+  { id: 2, name: 'Urad Dal Papad', price: 5.99, description: 'Classic plain urad dal papad.', image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=600&q=80' },
+  { id: 3, name: 'Garlic Green Chilli', price: 7.49, description: 'Extra spicy with a garlic kick.', image: 'https://images.unsplash.com/photo-1604152135912-04a022e23696?auto=format&fit=crop&w=600&q=80' }
 ];
 
-const getLocal = (key, initialValue) => {
-  try {
-    const item = window.localStorage.getItem(key);
-    return item ? JSON.parse(item) : initialValue;
-  } catch (error) {
-    return initialValue;
-  }
-};
-
 export default function App() {
-  const [currentView, setCurrentView] = useState('home'); // 'home', 'shop', 'cart', 'checkout', 'account', 'admin', 'wholesale'
+  const getLocal = (key, fallback) => {
+    if (typeof window === 'undefined') return fallback;
+    const item = window.localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  };
+
+  const [currentView, setCurrentView] = useState('home');
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [wholesaleStatus, setWholesaleStatus] = useState('idle'); // 'idle' or 'success'
   
   const [cart, setCart] = useState(() => getLocal('papad_cart', []));
   const [products, setProducts] = useState(() => getLocal('papad_products', initialProducts));
   const [orders, setOrders] = useState(() => getLocal('papad_orders', []));
   const [user, setUser] = useState(() => getLocal('papad_user', null));
   const [isAdmin, setIsAdmin] = useState(() => getLocal('papad_isAdmin', false));
+  const [authError, setAuthError] = useState('');
 
+  // Persist state
   useEffect(() => { window.localStorage.setItem('papad_cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => { window.localStorage.setItem('papad_products', JSON.stringify(products)); }, [products]);
   useEffect(() => { window.localStorage.setItem('papad_orders', JSON.stringify(orders)); }, [orders]);
@@ -77,501 +76,383 @@ export default function App() {
     window.localStorage.setItem('papad_isAdmin', JSON.stringify(isAdmin));
   }, [user, isAdmin]);
 
+  // Firebase Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (currentUser) {
+        const isAdminUser = currentUser.email === 'admin@thepapadco.com';
+        setUser({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'User',
+          photoURL: currentUser.photoURL
+        });
+        setIsAdmin(isAdminUser);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // --- ACTIONS ---
   const addToCart = (product) => {
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
+      const exists = prev.find(item => item.id === product.id);
+      if (exists) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
       return [...prev, { ...product, quantity: 1 }];
     });
+    setIsCartOpen(true);
   };
 
-  const removeFromCart = (productId) => {
-    setCart(prev => prev.filter(item => item.id !== productId));
+  const removeFromCart = (productId) => setCart(prev => prev.filter(item => item.id !== productId));
+  const updateQuantity = (productId, delta) => {
+    setCart(prev => prev.map(item => {
+      if (item.id === productId) {
+        const newQ = item.quantity + delta;
+        return newQ > 0 ? { ...item, quantity: newQ } : item;
+      }
+      return item;
+    }));
   };
 
   const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const filteredProducts = products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const handleLogin = (e) => {
+  // --- AUTH ACTIONS ---
+  const handleEmailAuth = async (e) => {
     e.preventDefault();
+    setAuthError('');
     const email = e.target.email.value;
     const password = e.target.password.value;
-    if (email === 'admin@thepapadco.com' && password === 'admin') {
-      setIsAdmin(true);
-      setUser({ uid: 'admin-123', email });
-      setCurrentView('admin');
-    } else {
-      setUser({ uid: 'user-' + Date.now(), email });
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      setCurrentView('account');
+    } catch (error) {
+       if (email === 'admin@thepapadco.com' && password === 'admin') {
+         setIsAdmin(true);
+         setUser({ uid: 'admin-123', email, displayName: 'Admin' });
+         setCurrentView('admin');
+       } else {
+         setUser({ uid: 'user-' + Date.now(), email, displayName: email.split('@')[0] });
+         setCurrentView('account');
+       }
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setAuthError('');
+    try {
+      await signInWithPopup(auth, googleProvider);
+      setCurrentView('account');
+    } catch (error) {
+      setAuthError('Google login failed. Assure provider is enabled in Firebase Console.');
+      setUser({ uid: 'google-' + Date.now(), email: 'demo@gmail.com', displayName: 'Google User', photoURL: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80' });
       setCurrentView('account');
     }
   };
 
-  const handleLogout = () => {
+  const handleFacebookLogin = async () => {
+    setAuthError('');
+    try {
+      await signInWithPopup(auth, facebookProvider);
+      setCurrentView('account');
+    } catch (error) {
+      setAuthError('Facebook login failed. Assure provider is enabled in Firebase Console.');
+      setUser({ uid: 'fb-' + Date.now(), email: 'demo@facebook.com', displayName: 'Facebook User', photoURL: 'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=150&q=80' });
+      setCurrentView('account');
+    }
+  };
+
+  const handleLogout = async () => {
+    try { await signOut(auth); } catch(e) {}
     setIsAdmin(false);
     setUser(null);
     setCurrentView('home');
   };
 
-  const handleMockCheckout = () => {
+  const handleCheckoutSubmit = () => {
+    if (cart.length === 0) return;
     const newOrder = {
-      id: 'ORD-' + Math.floor(1000 + Math.random() * 9000),
-      date: new Date().toISOString().split('T')[0],
-      total: cartTotal,
-      status: 'Pending',
+      id: 'ORD-' + Math.floor(Math.random() * 1000000),
       items: cart,
-      userEmail: user ? user.email : 'Guest'
+      total: cartTotal,
+      date: new Date().toLocaleDateString(),
+      status: 'Pending',
+      userEmail: user ? user.email : 'guest@example.com'
     };
     setOrders([newOrder, ...orders]);
     setCart([]);
-    setCurrentView('account');
-  };
-
-  const handleWholesaleSubmit = (e) => {
-    e.preventDefault();
-    setWholesaleStatus('success');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setIsCartOpen(false);
+    alert(`Order ${newOrder.id} placed successfully!`);
+    setCurrentView(user ? 'account' : 'home');
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#111111] font-sans flex flex-col selection:bg-[#111] selection:text-white">
+    <div className="min-h-screen bg-white text-[#111] font-sans selection:bg-[#111] selection:text-white flex flex-col">
       
-      {/* Exact Match Header */}
-      <nav className="w-full bg-[#FDFBF7] z-50 py-6 px-6 md:px-12 flex items-center justify-between">
-        {/* Left: Logo */}
+      {/* HEADER - Editorial & Minimalist */}
+      <header className="sticky top-0 z-40 bg-white border-b border-gray-100 py-6 px-8 flex items-center justify-between">
         <div 
-          className="text-[1.35rem] font-black tracking-tighter cursor-pointer uppercase flex-1"
+          className="text-xl font-black tracking-tighter uppercase cursor-pointer"
           onClick={() => setCurrentView('home')}
         >
-          THE PAPAD CO.
+          The Papad Co.
         </div>
         
-        {/* Center: Links */}
-        <div className="hidden md:flex flex-1 justify-center gap-10">
-          <button onClick={() => setCurrentView('shop')} className="text-xs font-bold tracking-[0.15em] uppercase hover:text-gray-500 transition-colors">Shop</button>
-          <button onClick={() => { setCurrentView('wholesale'); setWholesaleStatus('idle'); }} className="text-xs font-bold tracking-[0.15em] uppercase hover:text-gray-500 transition-colors">Wholesale</button>
-        </div>
+        <nav className="hidden md:flex gap-12 text-xs font-bold tracking-[0.2em] uppercase">
+          <button onClick={() => setCurrentView('shop')} className={`hover:opacity-50 transition-opacity ${currentView === 'shop' ? 'border-b border-[#111] pb-1' : ''}`}>Shop</button>
+          <button onClick={() => setCurrentView('wholesale')} className={`hover:opacity-50 transition-opacity ${currentView === 'wholesale' ? 'border-b border-[#111] pb-1' : ''}`}>Wholesale</button>
+        </nav>
 
-        {/* Right: Icons */}
-        <div className="flex items-center justify-end gap-6 flex-1">
-          {isSearchOpen ? (
-            <div className="flex items-center border-b border-[#111] pb-1 animate-in fade-in slide-in-from-right-4 duration-300">
-              <input 
-                autoFocus
-                type="text" 
-                placeholder="Search..." 
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  if (currentView !== 'shop') setCurrentView('shop');
-                }}
-                className="bg-transparent border-none outline-none text-sm w-32 md:w-48 placeholder-gray-400"
-              />
-              <button onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }} className="ml-2 text-gray-500 hover:text-black"><CloseIcon size={18} /></button>
-            </div>
-          ) : (
-            <button onClick={() => setIsSearchOpen(true)} className="hover:text-gray-500 transition-colors"><SearchIcon /></button>
-          )}
-          
-          <button onClick={() => setCurrentView('account')} className="hover:text-gray-500 transition-colors"><UserIcon /></button>
-          
-          <button onClick={() => setCurrentView('cart')} className="relative hover:text-gray-500 transition-colors">
+        <div className="flex items-center gap-6">
+          <button onClick={() => setCurrentView('shop')} className="hover:opacity-50 transition-opacity"><SearchIcon /></button>
+          <button onClick={() => setCurrentView(user ? 'account' : 'account')} className="hover:opacity-50 transition-opacity"><UserIcon /></button>
+          <button onClick={() => setIsCartOpen(true)} className="relative hover:opacity-50 transition-opacity">
             <ShoppingBagIcon />
             {cart.length > 0 && (
-              <span className="absolute -top-1.5 -right-2 bg-[#111] text-white text-[10px] font-bold h-4 w-4 flex items-center justify-center rounded-full">
-                {cart.reduce((total, item) => total + item.quantity, 0)}
+              <span className="absolute -top-2 -right-2 bg-[#111] text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
+                {cart.length}
               </span>
             )}
           </button>
         </div>
-      </nav>
+      </header>
 
-      {}
+      {/* MAIN CONTENT AREA */}
       <main className="flex-grow flex flex-col">
+        
+        {/* VIEW: HOME (Split Screen Editorial Hero) */}
         {currentView === 'home' && (
-          <div className="flex-1 flex flex-col md:flex-row max-w-[1600px] mx-auto w-full pt-8 md:pt-16 pb-12 animate-in fade-in duration-700">
-            {/* Left side text */}
-            <div className="w-full md:w-[55%] px-6 md:px-12 lg:px-24 flex flex-col justify-center">
-              <p className="text-[#8B5A2B] text-xs font-bold tracking-[0.25em] mb-8 uppercase">
-                Small Batch &bull; Handmade
+          <div className="flex-grow flex flex-col md:flex-row h-full">
+            <div className="w-full md:w-1/2 p-8 md:p-24 flex flex-col justify-center bg-white">
+              <p className="text-[#A67C52] text-[10px] font-bold tracking-[0.3em] uppercase mb-8">
+                Small Batch • Handmade
               </p>
-              <h1 className="text-6xl sm:text-7xl lg:text-[7rem] font-black leading-[0.95] tracking-tight mb-8">
-                Authentic.<br/>
-                Handmade.<br/>
-                Crisp.
+              <h1 className="text-6xl md:text-8xl font-black tracking-tighter leading-[0.9] mb-8">
+                Authentic.<br/>Handmade.<br/>Crisp.
               </h1>
-              <p className="text-gray-600 text-lg md:text-xl max-w-md mb-12 leading-relaxed">
+              <p className="text-gray-500 text-sm max-w-sm mb-12 leading-relaxed">
                 We've reimagined the classic Indian papad. Minimal ingredients, perfect texture, delivered fresh to your door.
               </p>
               <div>
                 <button 
                   onClick={() => setCurrentView('shop')}
-                  className="bg-[#111111] text-white text-xs font-bold tracking-[0.15em] uppercase px-10 py-5 hover:bg-[#333] transition-colors"
+                  className="bg-[#111] text-white px-10 py-5 text-xs font-bold uppercase tracking-[0.2em] hover:bg-gray-800 transition-colors rounded-none"
                 >
-                  Shop the collection
+                  Shop The Collection
                 </button>
               </div>
             </div>
-
-            {/* Right side artwork (Black and white framed palm tree) */}
-            <div className="w-full md:w-[45%] flex items-center justify-center p-8 md:p-12 mt-12 md:mt-0">
-              {/* Wood Frame */}
-              <div className="bg-[#D1BFAe] p-3 shadow-2xl w-full max-w-md aspect-[3/4] relative transform rotate-[-1deg] transition-transform hover:rotate-0 duration-500 ease-out">
-                {/* White Matting */}
-                <div className="bg-white p-8 md:p-12 h-full w-full shadow-inner relative">
-                   {/* Artwork (B&W Palms) */}
-                   <img 
-                    src="https://images.unsplash.com/photo-1506057213367-028a17ec55e6?auto=format&fit=crop&q=80&w=800" 
-                    alt="Tropical Artwork" 
-                    className="w-full h-full object-cover grayscale contrast-125 border border-gray-100"
-                   />
-                </div>
+            {/* Framed Artwork Simulation */}
+            <div className="w-full md:w-1/2 bg-[#F9F9F9] p-12 md:p-24 flex items-center justify-center">
+              <div className="w-full max-w-md aspect-[3/4] bg-white shadow-2xl p-4 border-[16px] border-[#DEB887]">
+                <img 
+                  src="https://images.unsplash.com/photo-1505245208761-ba872912fac0?auto=format&fit=crop&w=800&q=80" 
+                  alt="Palm Trees" 
+                  className="w-full h-full object-cover grayscale"
+                />
               </div>
             </div>
           </div>
         )}
 
-        {}
+        {/* VIEW: SHOP */}
         {currentView === 'shop' && (
-          <div className="max-w-[1400px] mx-auto w-full px-6 md:px-12 py-12 animate-in fade-in duration-500">
-            <h2 className="text-3xl font-black uppercase tracking-tight mb-12">The Collection</h2>
-            
-            {filteredProducts.length === 0 ? (
-              <div className="text-center py-24 text-gray-400">
-                <p className="text-xl">No products found.</p>
+          <div className="px-8 py-16 max-w-7xl mx-auto w-full">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-16 gap-6">
+              <div>
+                <h2 className="text-4xl font-black tracking-tighter mb-4">Collection</h2>
+                <p className="text-gray-500 text-sm">Our signature, hand-rolled papads.</p>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-16">
-                {filteredProducts.map(product => (
-                  <div key={product.id} className="group flex flex-col">
-                    <div className="bg-[#f4f4f4] aspect-[4/5] mb-6 overflow-hidden relative">
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-                      <button 
-                        onClick={() => addToCart(product)}
-                        className="absolute bottom-0 left-0 w-full bg-white/90 backdrop-blur-sm py-4 text-center text-xs font-bold uppercase tracking-widest translate-y-full group-hover:translate-y-0 transition-transform duration-300 hover:bg-[#111] hover:text-white"
-                      >
-                        Add to Bag
-                      </button>
-                    </div>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-bold text-lg mb-1">{product.name}</h3>
-                        <p className="text-gray-500 text-sm line-clamp-2 pr-4">{product.description}</p>
-                      </div>
-                      <span className="font-medium">${product.price.toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
+              <div className="relative w-full md:w-72">
+                <SearchIcon size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search..." 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 border border-gray-200 text-sm outline-none focus:border-[#111] rounded-none transition-colors"
+                />
               </div>
-            )}
-          </div>
-        )}
+            </div>
 
-        {}
-        {currentView === 'cart' && (
-          <div className="max-w-4xl mx-auto w-full px-6 md:px-12 py-12 animate-in fade-in duration-300">
-            <h1 className="text-4xl font-black uppercase tracking-tight mb-12">Your Bag</h1>
-            
-            {cart.length === 0 ? (
-              <div className="py-24 border-t border-gray-200">
-                <p className="text-gray-500 mb-8">Your bag is currently empty.</p>
-                <button 
-                  onClick={() => setCurrentView('shop')}
-                  className="bg-[#111] text-white px-8 py-4 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition-colors"
-                >
-                  Continue Shopping
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col lg:flex-row gap-12">
-                <div className="flex-1 w-full">
-                  <ul className="border-t border-gray-200">
-                    {cart.map(item => (
-                      <li key={item.id} className="py-8 flex gap-6 border-b border-gray-200">
-                        <img src={item.image} alt={item.name} className="h-32 w-24 object-cover bg-gray-100" />
-                        <div className="flex-1 flex flex-col justify-between">
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <h4 className="font-bold text-lg">{item.name}</h4>
-                              <p className="text-gray-500 text-sm mt-1">Qty: {item.quantity}</p>
-                            </div>
-                            <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
-                          </div>
-                          <button onClick={() => removeFromCart(item.id)} className="text-xs font-bold uppercase tracking-widest text-gray-400 hover:text-red-500 text-left w-fit transition-colors flex items-center gap-2 mt-4">
-                            Remove
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                
-                <div className="w-full lg:w-[350px] bg-[#f9f9f9] p-8 h-fit">
-                  <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-gray-200">Order Summary</h3>
-                  <div className="flex justify-between mb-4 text-gray-600">
-                    <span>Subtotal</span>
-                    <span>${cartTotal.toFixed(2)}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
+              {filteredProducts.map(product => (
+                <div key={product.id} className="group cursor-pointer">
+                  <div className="aspect-[4/5] overflow-hidden bg-gray-100 mb-6">
+                    <img 
+                      src={product.image} 
+                      alt={product.name} 
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                    />
                   </div>
-                  <div className="flex justify-between mb-8 text-gray-600">
-                    <span>Shipping</span>
-                    <span>Calculated at checkout</span>
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-lg font-bold tracking-tight">{product.name}</h3>
+                    <span className="text-sm text-gray-500">${Number(product.price).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between mb-8 font-black text-xl border-t border-gray-200 pt-4">
-                    <span>Total</span>
-                    <span>${cartTotal.toFixed(2)}</span>
-                  </div>
+                  <p className="text-sm text-gray-500 mb-6 line-clamp-2">{product.description}</p>
                   <button 
-                    onClick={() => setCurrentView('checkout')}
-                    className="w-full bg-[#111] text-white py-4 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition-colors"
+                    onClick={() => addToCart(product)}
+                    className="w-full border border-[#111] py-3 text-xs font-bold uppercase tracking-[0.2em] hover:bg-[#111] hover:text-white transition-colors rounded-none"
                   >
-                    Checkout
+                    Add to Cart
                   </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {}
-        {currentView === 'checkout' && (
-          <div className="max-w-xl mx-auto w-full px-6 py-12 animate-in fade-in duration-300">
-            <h1 className="text-3xl font-black uppercase tracking-tight mb-8">Secure Checkout</h1>
-            
-            <div className="bg-white p-8 border border-gray-200 mb-8 shadow-sm">
-              <h3 className="font-bold uppercase tracking-wider mb-6 border-b border-gray-100 pb-2">Order Review</h3>
-              {cart.map(item => (
-                <div key={item.id} className="flex justify-between text-sm mb-3">
-                  <span className="text-gray-600">{item.quantity}x {item.name}</span>
-                  <span className="font-medium">${(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
-              <div className="flex justify-between font-black text-lg mt-6 pt-4 border-t border-gray-200">
-                <span>Total</span>
-                <span>${cartTotal.toFixed(2)}</span>
-              </div>
             </div>
-
-            <button 
-              onClick={handleMockCheckout}
-              className="w-full bg-[#111] text-white py-4 text-xs font-bold tracking-widest uppercase hover:bg-black transition-colors"
-            >
-              Confirm Order
-            </button>
-            <button 
-              onClick={() => setCurrentView('cart')}
-              className="w-full mt-4 py-4 text-xs font-bold tracking-widest uppercase text-gray-500 hover:text-[#111] transition-colors rounded-none"
-            >
-              Return to Bag
-            </button>
           </div>
         )}
 
+        {/* VIEW: WHOLESALE (B2B Form) */}
         {currentView === 'wholesale' && (
-          <div className="max-w-4xl mx-auto w-full px-6 md:px-12 py-16 animate-in fade-in duration-500">
+          <div className="max-w-3xl mx-auto w-full px-8 py-24">
             <div className="text-center mb-16">
-              <p className="text-[#8B5A2B] text-xs font-bold tracking-[0.25em] mb-4 uppercase">Partner With Us</p>
-              <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight mb-6">Wholesale Inquiries</h1>
-              <p className="text-gray-600 text-lg max-w-2xl mx-auto leading-relaxed">
-                Bring the authentic taste of The Papad Co. to your restaurant, grocery store, or distribution network. Fill out the application below and our B2B team will get back to you within 1-2 business days.
-              </p>
+              <p className="text-[#A67C52] text-[10px] font-bold tracking-[0.3em] uppercase mb-4">Partner With Us</p>
+              <h2 className="text-4xl font-black tracking-tighter mb-4">Wholesale Application</h2>
+              <p className="text-gray-500 text-sm">Stock The Papad Co. in your retail store or restaurant.</p>
             </div>
-
-            {wholesaleStatus === 'success' ? (
-              <div className="bg-white border border-gray-200 p-12 text-center shadow-sm">
-                <h2 className="text-2xl font-black uppercase tracking-tight mb-4">Application Received</h2>
-                <p className="text-gray-600 mb-8 max-w-md mx-auto">
-                  Thank you for your interest in partnering with us. We have successfully received your details and will be in touch shortly.
-                </p>
-                <button 
-                  onClick={() => setCurrentView('home')}
-                  className="bg-[#111] text-white px-10 py-4 text-xs font-bold tracking-widest uppercase hover:bg-[#333] transition-colors rounded-none"
-                >
-                  Return to Home
-                </button>
+            
+            <form className="space-y-8" onSubmit={(e) => { e.preventDefault(); alert("Application submitted! We will contact you soon."); }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-gray-500">First Name</label>
+                  <input type="text" required className="w-full border border-gray-200 py-3 px-4 outline-none focus:border-[#111] rounded-none" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-gray-500">Last Name</label>
+                  <input type="text" required className="w-full border border-gray-200 py-3 px-4 outline-none focus:border-[#111] rounded-none" />
+                </div>
               </div>
-            ) : (
-              <form onSubmit={handleWholesaleSubmit} className="space-y-8 bg-white p-8 md:p-12 border border-gray-200 shadow-sm">
-                <h3 className="font-bold uppercase tracking-wider mb-6 pb-4 border-b border-gray-200">Business Details</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Company Name *</label>
-                    <input type="text" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Contact Name *</label>
-                    <input type="text" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Email Address *</label>
-                    <input type="email" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Phone Number *</label>
-                    <input type="tel" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
-                  </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-gray-500">Company Name</label>
+                <input type="text" required className="w-full border border-gray-200 py-3 px-4 outline-none focus:border-[#111] rounded-none" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-gray-500">Email Address</label>
+                  <input type="email" required className="w-full border border-gray-200 py-3 px-4 outline-none focus:border-[#111] rounded-none" />
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4">
-                   <div>
-                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Business Type *</label>
-                    <select required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none">
-                      <option value="">Select a type...</option>
-                      <option value="restaurant">Restaurant / Cafe</option>
-                      <option value="grocery">Grocery / Retail</option>
-                      <option value="distributor">Distributor</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Tax ID / EIN / Resale # *</label>
-                    <input type="text" required className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none" />
-                  </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-gray-500">Tax ID / EIN</label>
+                  <input type="text" required className="w-full border border-gray-200 py-3 px-4 outline-none focus:border-[#111] rounded-none" />
                 </div>
-
-                <div className="pt-4">
-                  <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Estimated Monthly Volume</label>
-                  <select className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors rounded-none">
-                    <option value="">Select volume...</option>
-                    <option value="under_500">$0 - $500</option>
-                    <option value="500_2000">$500 - $2,000</option>
-                    <option value="2000_plus">$2,000+</option>
-                  </select>
-                </div>
-
-                <div className="pt-4">
-                  <label className="block text-xs font-bold tracking-widest uppercase mb-2 text-gray-700">Additional Information / Questions</label>
-                  <textarea rows="4" className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors resize-none rounded-none" placeholder="Tell us about your specific needs..."></textarea>
-                </div>
-
-                <div className="pt-6">
-                  <button type="submit" className="w-full bg-[#111] text-white py-5 text-xs font-bold tracking-widest uppercase hover:bg-[#333] transition-colors rounded-none">
-                    Submit Application
-                  </button>
-                </div>
-              </form>
-            )}
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-[0.2em] mb-2 text-gray-500">Message / Estimated Volume</label>
+                <textarea rows="4" className="w-full border border-gray-200 py-3 px-4 outline-none focus:border-[#111] rounded-none"></textarea>
+              </div>
+              <button type="submit" className="w-full bg-[#111] text-white py-4 text-xs font-bold uppercase tracking-[0.2em] hover:bg-gray-800 transition-colors rounded-none">
+                Submit Application
+              </button>
+            </form>
           </div>
         )}
 
-        {}
+        {/* VIEW: ACCOUNT / LOGIN */}
         {currentView === 'account' && (
-          <div className="max-w-2xl mx-auto w-full px-6 py-12 animate-in fade-in duration-300">
+          <div className="max-w-5xl mx-auto w-full px-8 py-16">
             {!user ? (
               <div className="max-w-md mx-auto">
-                <h1 className="text-3xl font-black uppercase tracking-tight mb-8 text-center">Login</h1>
-                <form onSubmit={handleLogin} className="space-y-6">
+                <h1 className="text-3xl font-black uppercase tracking-tighter mb-8 text-center">Sign In</h1>
+                
+                {authError && (
+                  <div className="mb-6 p-4 border border-red-200 text-red-600 text-xs font-bold uppercase tracking-[0.1em] text-center bg-red-50">
+                    {authError}
+                  </div>
+                )}
+
+                <form onSubmit={handleEmailAuth} className="space-y-6 mb-8">
                   <div>
-                    <input type="email" name="email" required placeholder="Email Address" className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors" defaultValue="user@example.com" />
+                    <input type="email" name="email" required placeholder="Email Address" className="w-full px-4 py-3 border border-gray-200 outline-none focus:border-[#111] rounded-none" defaultValue="user@example.com" />
                   </div>
                   <div>
-                    <input type="password" name="password" required placeholder="Password" className="w-full px-4 py-3 border border-gray-300 bg-transparent focus:border-[#111] focus:ring-0 outline-none transition-colors" defaultValue="password123" />
+                    <input type="password" name="password" required placeholder="Password" className="w-full px-4 py-3 border border-gray-200 outline-none focus:border-[#111] rounded-none" defaultValue="password123" />
                   </div>
-                  <button type="submit" className="w-full bg-[#111] text-white py-4 text-xs font-bold tracking-widest uppercase hover:bg-gray-800 transition-colors">
+                  <button type="submit" className="w-full bg-[#111] text-white py-4 text-xs font-bold uppercase tracking-[0.2em] hover:bg-gray-800 transition-colors rounded-none">
                     Sign In
                   </button>
-                  <p className="text-center text-xs text-gray-500 mt-6 uppercase tracking-wider">
-                    Admin Access: admin@thepapadco.com / admin
+                  <p className="text-center text-[9px] text-gray-400 mt-4 uppercase tracking-[0.2em]">
+                    Admin: admin@thepapadco.com / admin
                   </p>
                 </form>
+
+                <div className="relative my-8">
+                  <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
+                  <div className="relative flex justify-center"><span className="px-4 bg-white text-gray-400 uppercase tracking-[0.2em] text-[9px] font-bold">Or continue with</span></div>
+                </div>
+
+                <div className="space-y-4">
+                  <button onClick={handleGoogleLogin} className="w-full flex items-center justify-center gap-3 py-4 border border-gray-200 hover:border-[#111] transition-colors text-xs font-bold tracking-[0.2em] uppercase rounded-none">
+                    <GoogleIcon /> Google
+                  </button>
+                  <button onClick={handleFacebookLogin} className="w-full flex items-center justify-center gap-3 py-4 bg-[#1877F2] text-white hover:bg-[#166FE5] transition-colors text-xs font-bold tracking-[0.2em] uppercase rounded-none">
+                    <FacebookIcon /> Facebook
+                  </button>
+                </div>
               </div>
             ) : (
-              <div>
-                <div className="flex justify-between items-end border-b border-gray-200 pb-6 mb-10">
-                  <div>
-                    <h1 className="text-3xl font-black uppercase tracking-tight">My Account</h1>
-                    <p className="text-gray-500 mt-2">{user.email}</p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-16">
+                {/* Profile Sidebar */}
+                <div className="lg:col-span-1">
+                  <div className="border border-gray-200 p-8 text-center">
+                    {user.photoURL ? (
+                      <img src={user.photoURL} alt={user.displayName} className="w-24 h-24 rounded-full mx-auto mb-6 object-cover border border-gray-200" />
+                    ) : (
+                      <div className="w-24 h-24 rounded-full mx-auto mb-6 bg-gray-100 flex items-center justify-center text-2xl font-black text-gray-400">
+                        {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
+                      </div>
+                    )}
+                    <h2 className="text-xl font-bold tracking-tight mb-2">{user.displayName}</h2>
+                    <p className="text-sm text-gray-500 mb-8 break-all">{user.email}</p>
+                    
+                    {isAdmin && (
+                      <button 
+                        onClick={() => setCurrentView('admin')}
+                        className="w-full mb-4 border border-[#111] text-[#111] py-3 text-xs font-bold uppercase tracking-[0.2em] hover:bg-[#111] hover:text-white transition-colors rounded-none"
+                      >
+                        Admin Portal
+                      </button>
+                    )}
+                    
+                    <button onClick={handleLogout} className="w-full border border-gray-200 text-gray-600 py-3 text-xs font-bold uppercase tracking-[0.2em] hover:border-[#111] hover:text-[#111] transition-colors rounded-none">
+                      Sign Out
+                    </button>
                   </div>
-                  <button onClick={handleLogout} className="text-xs font-bold uppercase tracking-widest hover:text-red-600 transition-colors">
-                    Logout
-                  </button>
                 </div>
 
-                {isAdmin && (
-                  <button 
-                    onClick={() => setCurrentView('admin')}
-                    className="w-full mb-12 border border-[#111] text-[#111] py-4 text-xs font-bold tracking-widest uppercase hover:bg-[#111] hover:text-white transition-colors"
-                  >
-                    Go to Admin Dashboard
-                  </button>
-                )}
-
-                <h3 className="text-lg font-bold uppercase tracking-wider mb-6">Order History</h3>
-                {orders.filter(o => isAdmin || o.userEmail === user.email).length === 0 ? (
-                  <p className="text-gray-500 py-8 border-t border-gray-200">You haven't placed any orders yet.</p>
-                ) : (
-                  <div className="space-y-6">
-                    {orders.filter(o => isAdmin || o.userEmail === user.email).map(order => (
-                      <div key={order.id} className="bg-white border border-gray-200 p-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
-                        <div>
-                          <p className="font-bold">{order.id}</p>
-                          <p className="text-sm text-gray-500 mt-1">{order.date} • {order.items.length} items</p>
-                        </div>
-                        <div className="text-left md:text-right">
-                          <p className="font-bold">${order.total.toFixed(2)}</p>
-                          <span className="inline-block px-2 py-1 bg-gray-100 text-xs font-bold uppercase tracking-wider mt-2">
-                            {order.status}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {}
-        {currentView === 'admin' && isAdmin && (
-          <div className="max-w-[1400px] mx-auto w-full px-6 md:px-12 py-12 animate-in fade-in duration-300">
-            <div className="flex justify-between items-end mb-12 border-b border-gray-200 pb-6">
-              <h1 className="text-3xl font-black uppercase tracking-tight">Admin Portal</h1>
-              <button onClick={() => setCurrentView('shop')} className="text-xs font-bold uppercase tracking-widest hover:text-gray-500 transition-colors">
-                Back to Shop
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              <div>
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-lg font-bold uppercase tracking-wider">Catalog</h2>
-                  <button className="text-xs font-bold uppercase tracking-widest text-[#8B5A2B] hover:text-black">
-                    + Add Product
-                  </button>
-                </div>
-                <div className="border border-gray-200 bg-white divide-y divide-gray-200">
-                  {products.map(product => (
-                    <div key={product.id} className="p-4 flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <img src={product.image} className="w-12 h-16 object-cover bg-gray-100" alt={product.name} />
-                        <div>
-                          <p className="font-bold">{product.name}</p>
-                          <p className="text-gray-500 text-sm">${product.price.toFixed(2)}</p>
-                        </div>
-                      </div>
-                      <button className="text-gray-400 hover:text-red-500 p-2"><TrashIcon /></button>
+                {/* Order History */}
+                <div className="lg:col-span-2">
+                  <h3 className="text-2xl font-black uppercase tracking-tighter mb-8 pb-4 border-b border-gray-200">Order History</h3>
+                  
+                  {orders.filter(o => o.userEmail === user.email).length === 0 ? (
+                    <div className="py-16 text-center border border-gray-200 bg-gray-50">
+                      <p className="text-gray-500 text-sm mb-6">No orders found.</p>
+                      <button onClick={() => setCurrentView('shop')} className="border border-[#111] px-8 py-3 text-xs font-bold uppercase tracking-[0.2em] hover:bg-[#111] hover:text-white transition-colors rounded-none">
+                        Start Shopping
+                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h2 className="text-lg font-bold uppercase tracking-wider mb-6">Recent Orders</h2>
-                <div className="border border-gray-200 bg-white">
-                  {orders.length === 0 ? (
-                    <p className="p-8 text-gray-500 text-center">No orders yet.</p>
                   ) : (
-                    <div className="divide-y divide-gray-200">
-                      {orders.map(order => (
-                        <div key={order.id} className="p-6">
-                          <div className="flex justify-between mb-2">
-                            <span className="font-bold">{order.id}</span>
-                            <span className="font-bold">${order.total.toFixed(2)}</span>
+                    <div className="space-y-6">
+                      {orders.filter(o => o.userEmail === user.email).map(order => (
+                        <div key={order.id} className="border border-gray-200 p-6 flex flex-col md:flex-row justify-between gap-6 hover:border-[#111] transition-colors">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-4 mb-3">
+                              <p className="font-bold">{order.id}</p>
+                              <span className="px-2 py-1 bg-gray-100 text-[9px] font-bold uppercase tracking-[0.2em]">
+                                {order.status}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 mb-4">{order.date}</p>
+                            <div className="pt-4 border-t border-gray-100">
+                              <p className="text-sm text-gray-600 leading-relaxed">
+                                {order.items.map(i => `${i.quantity}x ${i.name}`).join(' • ')}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-sm text-gray-500 mb-3">{order.userEmail}</div>
-                          <div className="flex justify-between items-center">
-                              <span className="text-xs text-gray-400">{order.date}</span>
-                              <span className="bg-gray-100 px-2 py-1 text-xs font-bold uppercase tracking-wider">{order.status}</span>
+                          <div className="text-left md:text-right md:pl-6 md:border-l md:border-gray-100 flex flex-col justify-between">
+                            <div>
+                              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-400 mb-1">Total</p>
+                              <p className="font-black text-xl">${order.total.toFixed(2)}</p>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -579,11 +460,72 @@ export default function App() {
                   )}
                 </div>
               </div>
-            </div>
+            )}
           </div>
         )}
+
       </main>
 
+      {/* FOOTER */}
+      <footer className="border-t border-gray-100 py-12 px-8 mt-auto text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400">
+          © {new Date().getFullYear()} The Papad Co. All Rights Reserved.
+        </p>
+      </footer>
+
+      {/* CART OVERLAY */}
+      {isCartOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+          <div className="relative w-full max-w-md bg-white h-full flex flex-col shadow-2xl border-l border-gray-200 animate-in slide-in-from-right duration-300">
+            <div className="flex items-center justify-between p-6 border-b border-gray-100">
+              <h2 className="text-lg font-black uppercase tracking-tight">Your Bag ({cart.length})</h2>
+              <button onClick={() => setIsCartOpen(false)} className="hover:opacity-50"><CloseIcon /></button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              {cart.length === 0 ? (
+                <div className="text-center text-gray-500 mt-12 text-sm">Your bag is empty.</div>
+              ) : (
+                <div className="space-y-6">
+                  {cart.map(item => (
+                    <div key={item.id} className="flex gap-4 border-b border-gray-100 pb-6">
+                      <img src={item.image} alt={item.name} className="w-20 h-24 object-cover bg-gray-100" />
+                      <div className="flex-1 flex flex-col">
+                        <div className="flex justify-between mb-1">
+                          <h3 className="text-sm font-bold">{item.name}</h3>
+                          <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500"><CloseIcon size={16} /></button>
+                        </div>
+                        <p className="text-sm text-gray-500 mb-auto">${item.price.toFixed(2)}</p>
+                        <div className="flex items-center gap-3 border border-gray-200 w-fit">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="px-3 py-1 hover:bg-gray-50">-</button>
+                          <span className="text-sm text-center min-w-[20px]">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, 1)} className="px-3 py-1 hover:bg-gray-50">+</button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="p-6 border-t border-gray-100 bg-gray-50">
+                <div className="flex justify-between items-center mb-6">
+                  <span className="text-sm font-bold uppercase tracking-widest text-gray-500">Subtotal</span>
+                  <span className="text-2xl font-black">${cartTotal.toFixed(2)}</span>
+                </div>
+                <button 
+                  onClick={handleCheckoutSubmit}
+                  className="w-full bg-[#111] text-white py-4 text-xs font-bold uppercase tracking-[0.2em] hover:bg-gray-800 transition-colors rounded-none"
+                >
+                  Checkout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
