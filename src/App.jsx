@@ -70,6 +70,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSubmittingB2B, setIsSubmittingB2B] = useState(false);
   const [b2bForm, setB2bForm] = useState({ 
     contactName: '', 
     businessName: '', 
@@ -478,10 +479,24 @@ export default function App() {
               <p className="text-gray-500 text-lg">Stock LIJO Papad in your retail store, restaurant, or distribution network. Tell us about your business and we'll get back to you with wholesale pricing.</p>
             </div>
             
-            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-10" onSubmit={(e) => {
+            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-10" onSubmit={async (e) => {
               e.preventDefault();
-              showToast("Application submitted! We will contact you soon.", "success");
-              setB2bForm({ contactName: '', businessName: '', businessType: '', email: '', phone: '', altPhone: '', city: '', state: '', country: '', gst: '', volume: '', message: '' });
+              setIsSubmittingB2B(true);
+              try {
+                const response = await fetch('/api/wholesale-inquiry', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(b2bForm)
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Submission failed');
+                showToast("Application submitted! Check your email for confirmation.", "success");
+                setB2bForm({ contactName: '', businessName: '', businessType: '', email: '', phone: '', altPhone: '', city: '', state: '', country: '', gst: '', volume: '', message: '' });
+              } catch (err) {
+                showToast(`Submission failed: ${err.message}`, "error");
+              } finally {
+                setIsSubmittingB2B(false);
+              }
             }}>
 
               {/* Contact Details */}
@@ -574,7 +589,9 @@ export default function App() {
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors">SUBMIT APPLICATION</button>
+              <button type="submit" disabled={isSubmittingB2B} className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {isSubmittingB2B ? 'SUBMITTING...' : 'SUBMIT APPLICATION'}
+              </button>
             </form>
           </div>
         )}
