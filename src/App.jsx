@@ -230,14 +230,18 @@ export default function App() {
       setPassword('');
       navigateTo('account');
     } catch (error) {
-      // Firebase returns different codes depending on version/config, but both
-      // of these mean "this doesn't match an existing account" in practice.
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/user-not-found') {
+        // Firebase is explicit here: this email has no account at all.
         showToast("No account found with that email. Please register first.", "error");
         setRegisterForm(prev => ({ ...prev, email }));
         navigateTo('register');
-      } else if (error.code === 'auth/wrong-password') {
-        showToast("Incorrect password. Please try again.", "error");
+      } else if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+        // Newer Firebase deliberately merges "wrong password" and "no such account"
+        // into one generic error for security, so we can't assume which it is.
+        // Don't force a redirect — let the person retry or choose to register themselves.
+        showToast("Incorrect email or password. Please try again, or create an account if you're new here.", "error");
+      } else if (error.code === 'auth/too-many-requests') {
+        showToast("Too many attempts. Please wait a moment and try again.", "error");
       } else {
         showToast(error.message, "error");
       }
