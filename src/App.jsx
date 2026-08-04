@@ -102,6 +102,7 @@ export default function App() {
       if (currentUser) {
         setUser(currentUser);
       } else {
+        setUser(null);
         signInAnonymously(auth).catch(err => console.log("Anonymous auth failed", err));
       }
     });
