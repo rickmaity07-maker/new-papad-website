@@ -15,7 +15,9 @@ import {
   getFirestore, 
   collection, 
   addDoc, 
-  serverTimestamp 
+  serverTimestamp,
+  doc,
+  setDoc
 } from 'firebase/firestore';
 import { 
   ShoppingCart, 
@@ -85,6 +87,20 @@ export default function App() {
     volume: '', 
     message: '' 
   });
+
+  const [registerForm, setRegisterForm] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    street: '',
+    city: '',
+    state: '',
+    postalCode: '',
+    country: ''
+  });
+  const [isRegistering, setIsRegistering] = useState(false);
 
   useEffect(() => {
     // Hash routing logic
@@ -214,20 +230,64 @@ export default function App() {
       setPassword('');
       navigateTo('account');
     } catch (error) {
-      showToast(error.message, "error");
+      // Firebase returns different codes depending on version/config, but both
+      // of these mean "this doesn't match an existing account" in practice.
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        showToast("No account found with that email. Please register first.", "error");
+        setRegisterForm(prev => ({ ...prev, email }));
+        navigateTo('register');
+      } else if (error.code === 'auth/wrong-password') {
+        showToast("Incorrect password. Please try again.", "error");
+      } else {
+        showToast(error.message, "error");
+      }
     }
   };
 
-  const handleEmailRegister = async (e) => {
+  const handleFullRegister = async (e) => {
     e.preventDefault();
+
+    if (registerForm.password !== registerForm.confirmPassword) {
+      showToast("Passwords do not match.", "error");
+      return;
+    }
+    if (registerForm.password.length < 6) {
+      showToast("Password must be at least 6 characters.", "error");
+      return;
+    }
+
+    setIsRegistering(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      showToast("Account created successfully!", "success");
-      setEmail('');
-      setPassword('');
+      const credential = await createUserWithEmailAndPassword(auth, registerForm.email, registerForm.password);
+
+      // Save the rest of the profile details Firebase Auth itself doesn't store
+      await setDoc(doc(db, 'users', credential.user.uid), {
+        fullName: registerForm.fullName,
+        email: registerForm.email,
+        phone: registerForm.phone,
+        address: {
+          street: registerForm.street,
+          city: registerForm.city,
+          state: registerForm.state,
+          postalCode: registerForm.postalCode,
+          country: registerForm.country
+        },
+        createdAt: serverTimestamp()
+      });
+
+      showToast("Account created successfully! Welcome to LIJO Papad.", "success");
+      setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '', street: '', city: '', state: '', postalCode: '', country: '' });
       navigateTo('account');
     } catch (error) {
-      showToast(error.message, "error");
+      if (error.code === 'auth/email-already-in-use') {
+        showToast("An account with this email already exists. Please login instead.", "error");
+        setEmail(registerForm.email);
+        navigateTo('account');
+      } else {
+        showToast(error.message, "error");
+      }
+    } finally {
+      setIsRegistering(false);
     }
   };
 
@@ -596,6 +656,89 @@ export default function App() {
           </div>
         )}
 
+        {/* Register Route */}
+        {currentRoute === 'register' && (
+          <div className="max-w-xl mx-auto px-4 py-16 sm:px-6">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-black tracking-tight mb-2">CREATE YOUR ACCOUNT</h2>
+              <p className="text-gray-500">Join LIJO Papad to track orders, save favorites, and check out faster.</p>
+            </div>
+
+            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-8" onSubmit={handleFullRegister}>
+              <div>
+                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Personal Details</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                    <input required type="text" value={registerForm.fullName} onChange={e => setRegisterForm({...registerForm, fullName: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+                      <input required type="email" value={registerForm.email} onChange={e => setRegisterForm({...registerForm, email: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                      <input required type="tel" placeholder="+91 98765 43210" value={registerForm.phone} onChange={e => setRegisterForm({...registerForm, phone: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Shipping Address</h3>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
+                    <input required type="text" value={registerForm.street} onChange={e => setRegisterForm({...registerForm, street: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                      <input required type="text" value={registerForm.city} onChange={e => setRegisterForm({...registerForm, city: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                      <input required type="text" value={registerForm.state} onChange={e => setRegisterForm({...registerForm, state: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Postal Code</label>
+                      <input required type="text" value={registerForm.postalCode} onChange={e => setRegisterForm({...registerForm, postalCode: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                    <input required type="text" value={registerForm.country} onChange={e => setRegisterForm({...registerForm, country: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Set a Password</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <input required type="password" minLength={6} value={registerForm.password} onChange={e => setRegisterForm({...registerForm, password: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+                    <input required type="password" minLength={6} value={registerForm.confirmPassword} onChange={e => setRegisterForm({...registerForm, confirmPassword: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" disabled={isRegistering} className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {isRegistering ? 'CREATING ACCOUNT...' : 'CREATE ACCOUNT'}
+              </button>
+
+              <p className="text-center text-sm text-gray-500">
+                Already have an account?{' '}
+                <button type="button" onClick={() => navigateTo('account')} className="text-black font-bold underline">Login instead</button>
+              </p>
+            </form>
+          </div>
+        )}
+
         {/* Account Route */}
         {currentRoute === 'account' && (
           <div className="max-w-md mx-auto px-4 py-16 sm:px-6">
@@ -603,18 +746,20 @@ export default function App() {
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                 <h2 className="text-3xl font-black text-center mb-8 tracking-tight">MY ACCOUNT</h2>
                 
-                <form className="space-y-4 mb-8">
+                <form className="space-y-4 mb-6" onSubmit={handleEmailLogin}>
                   <div>
                     <input type="email" placeholder="Email Address" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
                   </div>
                   <div>
                     <input type="password" placeholder="Password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
                   </div>
-                  <div className="flex gap-4 pt-2">
-                    <button type="submit" onClick={handleEmailLogin} className="flex-1 bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">LOGIN</button>
-                    <button type="button" onClick={handleEmailRegister} className="flex-1 bg-white text-black py-3 rounded-lg font-bold border-2 border-black hover:bg-gray-50 transition-colors">REGISTER</button>
-                  </div>
+                  <button type="submit" className="w-full bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition-colors">LOGIN</button>
                 </form>
+
+                <p className="text-center text-sm text-gray-500 mb-8">
+                  Don't have an account?{' '}
+                  <button onClick={() => { setRegisterForm(prev => ({ ...prev, email })); navigateTo('register'); }} className="text-black font-bold underline">Create one</button>
+                </p>
 
                 <div className="relative mb-8">
                   <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200"></div></div>
