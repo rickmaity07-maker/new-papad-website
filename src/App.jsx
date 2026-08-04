@@ -17,7 +17,8 @@ import {
   addDoc, 
   serverTimestamp,
   doc,
-  setDoc
+  setDoc,
+  getDoc
 } from 'firebase/firestore';
 import { 
   ShoppingCart, 
@@ -101,6 +102,8 @@ export default function App() {
     country: ''
   });
   const [isRegistering, setIsRegistering] = useState(false);
+  const [checkoutAddress, setCheckoutAddress] = useState({ street: '', city: '', state: '', postalCode: '', country: '' });
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
 
   useEffect(() => {
     // Hash routing logic
@@ -129,6 +132,22 @@ export default function App() {
       unsubscribe();
     };
   }, []);
+
+  // Prefill checkout address from the user's saved profile, if they have one
+  useEffect(() => {
+    const loadProfileAddress = async () => {
+      if (!user || user.isAnonymous) return;
+      try {
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists() && snap.data().address) {
+          setCheckoutAddress(snap.data().address);
+        }
+      } catch (err) {
+        console.log('Could not load saved address', err);
+      }
+    };
+    loadProfileAddress();
+  }, [user]);
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -172,9 +191,20 @@ export default function App() {
     showToast("Wishlist updated", "success");
   };
 
-  const checkout = async () => {
+  const loadRazorpayScript = () => {
+    return new Promise((resolve) => {
+      if (window.Razorpay) return resolve(true);
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
-    
+
     if (user?.isAnonymous) {
       showToast("Please login or register to complete your order.", "error");
       setIsCartOpen(false);
@@ -182,20 +212,87 @@ export default function App() {
       return;
     }
 
+    const { street, city, state, postalCode, country } = checkoutAddress;
+    if (!street || !city || !state || !postalCode || !country) {
+      showToast("Please fill in your full shipping address.", "error");
+      return;
+    }
+
+    const amount = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+    setIsPlacingOrder(true);
     try {
-      await addDoc(collection(db, `users/${user.uid}/orders`), {
-        email: user.email,
-        items: cart,
-        total: cart.reduce((sum, item) => sum + (item.price * item.qty), 0),
-        status: 'pending',
-        createdAt: serverTimestamp()
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) throw new Error("Couldn't load payment gateway. Check your connection and try again.");
+
+      // 1. Create a Razorpay order server-side
+      const orderRes = await fetch('/api/create-razorpay-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
       });
-      setCart([]);
-      setIsCartOpen(false);
-      showToast("Order placed successfully!", "success");
-      navigateTo('account');
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) throw new Error(orderData.error || 'Could not start payment');
+
+      // 2. Open the Razorpay checkout modal
+      const razorpay = new window.Razorpay({
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'LIJO Papad',
+        description: `Order for ${cart.reduce((n, i) => n + i.qty, 0)} item(s)`,
+        order_id: orderData.id,
+        prefill: {
+          name: user.displayName || '',
+          email: user.email || '',
+        },
+        theme: { color: '#000000' },
+        handler: async (response) => {
+          // 3. Verify the payment server-side and save the order
+          try {
+            const verifyRes = await fetch('/api/verify-razorpay-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                uid: user.uid,
+                email: user.email,
+                items: cart,
+                total: amount,
+                shippingAddress: checkoutAddress
+              })
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData.error || 'Payment verification failed');
+
+            setCart([]);
+            setIsCartOpen(false);
+            showToast("Order placed successfully! Check your email for confirmation.", "success");
+            navigateTo('account');
+          } catch (err) {
+            showToast(`Payment received, but order saving failed: ${err.message}. Please contact us.`, "error");
+          } finally {
+            setIsPlacingOrder(false);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setIsPlacingOrder(false);
+          }
+        }
+      });
+
+      razorpay.on('payment.failed', (response) => {
+        showToast(`Payment failed: ${response.error.description}`, "error");
+        setIsPlacingOrder(false);
+      });
+
+      razorpay.open();
     } catch (error) {
-      showToast(`Checkout failed: ${error.message}`, "error");
+      showToast(error.message, "error");
+      setIsPlacingOrder(false);
     }
   };
 
@@ -261,10 +358,27 @@ export default function App() {
     }
 
     setIsRegistering(true);
-    try {
-      const credential = await createUserWithEmailAndPassword(auth, registerForm.email, registerForm.password);
 
-      // Save the rest of the profile details Firebase Auth itself doesn't store
+    // Step 1: create the actual account. This is the source of truth for login.
+    let credential;
+    try {
+      credential = await createUserWithEmailAndPassword(auth, registerForm.email, registerForm.password);
+    } catch (error) {
+      if (error.code === 'auth/email-already-in-use') {
+        showToast("An account with this email already exists. Please login instead.", "error");
+        setEmail(registerForm.email);
+        navigateTo('account');
+      } else {
+        showToast(error.message, "error");
+      }
+      setIsRegistering(false);
+      return;
+    }
+
+    // Step 2: save the extra profile details. If this fails, the account still
+    // exists and can still log in — we don't want to leave the person confused
+    // about whether registration "worked."
+    try {
       await setDoc(doc(db, 'users', credential.user.uid), {
         fullName: registerForm.fullName,
         email: registerForm.email,
@@ -278,21 +392,15 @@ export default function App() {
         },
         createdAt: serverTimestamp()
       });
-
       showToast("Account created successfully! Welcome to LIJO Papad.", "success");
-      setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '', street: '', city: '', state: '', postalCode: '', country: '' });
-      navigateTo('account');
-    } catch (error) {
-      if (error.code === 'auth/email-already-in-use') {
-        showToast("An account with this email already exists. Please login instead.", "error");
-        setEmail(registerForm.email);
-        navigateTo('account');
-      } else {
-        showToast(error.message, "error");
-      }
-    } finally {
-      setIsRegistering(false);
+    } catch (profileError) {
+      console.error('Profile save failed:', profileError);
+      showToast("Your account was created, but we couldn't save your profile details. You're still logged in — you can try updating your details later.", "info");
     }
+
+    setRegisterForm({ fullName: '', email: '', phone: '', password: '', confirmPassword: '', street: '', city: '', state: '', postalCode: '', country: '' });
+    navigateTo('account');
+    setIsRegistering(false);
   };
 
   const handleLogout = async () => {
@@ -415,19 +523,34 @@ export default function App() {
             </div>
 
             {cart.length > 0 && (
-              <div className="border-t border-gray-100 p-6 bg-gray-50">
-                <div className="flex justify-between font-bold mb-4">
+              <div className="border-t border-gray-100 p-6 bg-gray-50 space-y-4">
+                {!user?.isAnonymous && (
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-black tracking-widest uppercase text-gray-400">Shipping Address</h3>
+                    <input type="text" placeholder="Street Address" value={checkoutAddress.street} onChange={e => setCheckoutAddress({...checkoutAddress, street: e.target.value})} className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input type="text" placeholder="City" value={checkoutAddress.city} onChange={e => setCheckoutAddress({...checkoutAddress, city: e.target.value})} className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                      <input type="text" placeholder="State" value={checkoutAddress.state} onChange={e => setCheckoutAddress({...checkoutAddress, state: e.target.value})} className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input type="text" placeholder="Postal Code" value={checkoutAddress.postalCode} onChange={e => setCheckoutAddress({...checkoutAddress, postalCode: e.target.value})} className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                      <input type="text" placeholder="Country" value={checkoutAddress.country} onChange={e => setCheckoutAddress({...checkoutAddress, country: e.target.value})} className="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                    </div>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold pt-2">
                   <span>Total</span>
                   <span>${cart.reduce((sum, item) => sum + (item.price * item.qty), 0).toFixed(2)}</span>
                 </div>
                 {user?.isAnonymous && (
-                  <p className="text-xs text-red-500 mb-3 text-center font-medium">You are shopping as a guest. Please login to place an order.</p>
+                  <p className="text-xs text-red-500 text-center font-medium">You are shopping as a guest. Please login to place an order.</p>
                 )}
                 <button 
-                  onClick={checkout}
-                  className="w-full bg-black text-white py-4 rounded-md font-bold tracking-widest hover:bg-gray-800 transition-colors"
+                  onClick={handleCheckout}
+                  disabled={isPlacingOrder}
+                  className="w-full bg-black text-white py-4 rounded-md font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {user?.isAnonymous ? 'LOGIN TO CHECKOUT' : 'CHECKOUT'}
+                  {user?.isAnonymous ? 'LOGIN TO CHECKOUT' : isPlacingOrder ? 'PROCESSING...' : 'PAY & PLACE ORDER'}
                 </button>
               </div>
             )}
