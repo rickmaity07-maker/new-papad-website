@@ -705,6 +705,134 @@ export default function App() {
            </div>
         )}
 
+        {/* Privacy Policy Route */}
+        {currentRoute === 'privacy' && (
+          <div className="max-w-3xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+            <h1 className="text-4xl font-black tracking-tight mb-2">PRIVACY POLICY</h1>
+            <p className="text-gray-400 text-sm mb-10">Last updated: August 2026</p>
+
+            <div className="space-y-8 text-gray-600 leading-relaxed">
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">1. Information We Collect</h2>
+                <p>When you create an account, place an order, or submit a wholesale inquiry, we collect information such as your name, email address, phone number, shipping address, and business details (for wholesale partners). If you sign in with Google or Facebook, we receive the basic profile information (name, email, profile photo) permitted by those services.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">2. How We Use Your Information</h2>
+                <p>We use your information to process and fulfil orders, respond to wholesale inquiries, manage your account and wishlist, send order and shipping updates, and improve our products and website. We do not sell your personal information to third parties.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">3. Third-Party Services</h2>
+                <p>We use trusted third-party services to operate LIJO Papad, including Firebase (authentication and order data), Supabase (wholesale inquiry records), and Resend (transactional email delivery). These providers process data only as needed to deliver their service to us and are bound by their own privacy and security obligations.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">4. Cookies</h2>
+                <p>Our website uses essential cookies and local session data to keep you signed in and remember your cart. We do not use third-party advertising or tracking cookies.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">5. Data Retention</h2>
+                <p>We retain account and order information for as long as your account is active, or as needed to comply with legal, accounting, or tax obligations.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">6. Your Rights</h2>
+                <p>You may request access to, correction of, or deletion of your personal data at any time by contacting us. You can also delete your account from your Account page, or by reaching out to our support email below.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">7. Contact Us</h2>
+                <p>For any privacy-related questions, reach us at <a href="mailto:privacy@lijopapad.com" className="text-black underline">privacy@lijopapad.com</a>.</p>
+              </section>
+              <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">This is a template privacy policy intended for a small handmade-goods business and should be reviewed by a qualified legal professional before being relied on for compliance purposes.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Terms of Service Route */}
+        {currentRoute === 'terms' && (
+          <div className="max-w-3xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+            <h1 className="text-4xl font-black tracking-tight mb-2">TERMS OF SERVICE</h1>
+            <p className="text-gray-400 text-sm mb-10">Last updated: August 2026</p>
+
+            <div className="space-y-8 text-gray-600 leading-relaxed">
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">1. About LIJO Papad</h2>
+                <p>LIJO Papad is a family-owned, handmade papad business based in Bangalore, Karnataka, India. By using this website, placing an order, or submitting a wholesale inquiry, you agree to the terms below.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">2. Orders &amp; Payment</h2>
+                <p>All prices are listed in USD and are subject to change without prior notice. Orders are confirmed once payment has been successfully processed. We reserve the right to refuse or cancel any order at our discretion, including in cases of suspected fraud or stock unavailability.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">3. Product Information</h2>
+                <p>Our papads are handmade in small batches; slight variation in size, shape, and appearance between pieces is normal and not considered a defect. Ingredients and allergen information are listed per product — please review carefully if you have food allergies.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">4. Account Responsibilities</h2>
+                <p>You are responsible for maintaining the confidentiality of your account credentials and for all activity under your account. Please notify us immediately of any unauthorized use.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">5. Wholesale &amp; Bulk Orders</h2>
+                <p>Wholesale inquiries submitted through our Wholesale page are not binding orders. Pricing, minimum order quantities, and terms for wholesale partners are confirmed separately in writing after review of your inquiry.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">6. Intellectual Property</h2>
+                <p>All content on this website, including our name, logo, recipes, and photography, is the property of LIJO Papad and may not be reproduced without written permission.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">7. Limitation of Liability</h2>
+                <p>LIJO Papad is not liable for any indirect, incidental, or consequential damages arising from the use of our products or website, to the fullest extent permitted by applicable law.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">8. Governing Law</h2>
+                <p>These terms are governed by the laws of India, and any disputes will be subject to the jurisdiction of the courts of Bangalore, Karnataka.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">9. Contact Us</h2>
+                <p>Questions about these terms can be sent to <a href="mailto:hello@lijopapad.com" className="text-black underline">hello@lijopapad.com</a>.</p>
+              </section>
+              <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">This is a template terms of service intended for a small handmade-goods business and should be reviewed by a qualified legal professional before being relied on for compliance purposes.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Shipping Policy Route */}
+        {currentRoute === 'shipping' && (
+          <div className="max-w-3xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+            <h1 className="text-4xl font-black tracking-tight mb-2">SHIPPING POLICY</h1>
+            <p className="text-gray-400 text-sm mb-10">Last updated: August 2026</p>
+
+            <div className="space-y-8 text-gray-600 leading-relaxed">
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">1. Processing Time</h2>
+                <p>Orders are handmade to order in small batches. Please allow 2&ndash;4 business days for your order to be prepared, sun-dried, and packed before it ships.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">2. Domestic Shipping (India)</h2>
+                <p>Orders within India typically arrive within 3&ndash;7 business days of dispatch, depending on your location. Shipping costs are calculated at checkout based on order weight and destination.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">3. International Shipping</h2>
+                <p>We currently offer limited international shipping. Delivery times for international orders typically range from 7&ndash;21 business days depending on destination and customs processing. Import duties and taxes, if applicable, are the responsibility of the recipient.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">4. Packaging</h2>
+                <p>Papads are fragile by nature. We use moisture-resistant, cushioned packaging to minimize breakage in transit, though minor breakage of a small percentage of pieces can occasionally occur during shipping.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">5. Damaged or Missing Items</h2>
+                <p>If your order arrives damaged or incomplete, please contact us within 48 hours of delivery with photos of the packaging and product, and we'll arrange a replacement or refund.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">6. Order Tracking</h2>
+                <p>Once your order ships, you'll receive a confirmation email with tracking information where available.</p>
+              </section>
+              <section>
+                <h2 className="text-lg font-bold text-gray-900 mb-2">7. Contact Us</h2>
+                <p>For shipping questions, reach us at <a href="mailto:orders@lijopapad.com" className="text-black underline">orders@lijopapad.com</a>.</p>
+              </section>
+              <p className="text-xs text-gray-400 pt-6 border-t border-gray-100">This is a template shipping policy and should be updated with your actual carriers, rates, and timelines before going live.</p>
+            </div>
+          </div>
+        )}
+
       </main>
 
       {/* Footer */}
@@ -713,9 +841,9 @@ export default function App() {
           <h2 className="text-xl font-black tracking-widest mb-4">LIJO PAPAD</h2>
           <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">Bringing authentic, handmade, and crispy traditional flavors to your modern dining table.</p>
           <div className="flex justify-center space-x-6 text-sm font-medium text-gray-400">
-            <a href="#" className="hover:text-black transition-colors">Privacy</a>
-            <a href="#" className="hover:text-black transition-colors">Terms</a>
-            <a href="#" className="hover:text-black transition-colors">Shipping</a>
+            <button onClick={() => navigateTo('privacy')} className="hover:text-black transition-colors">Privacy</button>
+            <button onClick={() => navigateTo('terms')} className="hover:text-black transition-colors">Terms</button>
+            <button onClick={() => navigateTo('shipping')} className="hover:text-black transition-colors">Shipping</button>
           </div>
           <p className="text-gray-400 text-xs mt-8">© 2026 LIJO Papad. All rights reserved.</p>
         </div>
