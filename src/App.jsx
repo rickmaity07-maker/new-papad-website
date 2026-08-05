@@ -18,7 +18,13 @@ import {
   serverTimestamp,
   doc,
   setDoc,
-  getDoc
+  getDoc,
+  onSnapshot,
+  query,
+  orderBy,
+  deleteDoc,
+  updateDoc,
+  collectionGroup
 } from 'firebase/firestore';
 import { 
   ShoppingCart, 
@@ -31,7 +37,13 @@ import {
   Search,
   CheckCircle,
   AlertCircle,
-  ShieldCheck
+  ShieldCheck,
+  Plus,
+  Trash2,
+  Pencil,
+  Eye,
+  EyeOff,
+  Upload
 } from 'lucide-react';
 
 // Replace the dummy strings below with your ACTUAL keys from the Firebase Console.
@@ -49,16 +61,52 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// Admin email configuration
-const ADMIN_EMAIL = "admin@lijopapad.com"; 
+// Admin email — whoever signs in with this email gets full admin access.
+// Set VITE_ADMIN_EMAIL in your environment variables to your real email.
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "admin@lijopapad.com";
 
-const PRODUCTS = [
-  { id: 1, name: "Classic Urad Papad", price: 5.99, image: "/Classic_Urad_Papad.jpg", desc: "Authentic handmade urad dal papad." },
-  { id: 2, name: "Spicy Moong Papad", price: 6.49, image: "/Spicy_Moong_Papad.webp", desc: "Crispy moong dal papad with a kick of black pepper." },
-  { id: 3, name: "Garlic Infused Papad", price: 6.99, image: "/salty-round-garlic-appalam-papad-without-added-preservative.webp", desc: "Rich garlic flavor infused in traditional papad." },
-  { id: 4, name: "Cumin Special Papad", price: 5.49, image: "/special_cumin_papad.webp", desc: "Light and digestive cumin jeera papad." },
-  { id: 5, name: "Punjabi Masala Papad", price: 7.49, image: "/Punjabi_masala_papad.png", desc: "Spicy and thick Punjabi style masala papad." },
-  { id: 6, name: "Mini Coin Papad", price: 4.99, image: "/coin_papad.jpg", desc: "Bite-sized coin papads perfect for snacking." }
+// Used only if Firestore has no products yet (first run) — the admin panel
+// takes over from here once you add/edit products through it.
+const DEFAULT_PRODUCTS = [
+  { name: "Classic Urad Papad", price: 5.99, image: "/Classic_Urad_Papad.jpg", desc: "Authentic handmade urad dal papad." },
+  { name: "Spicy Moong Papad", price: 6.49, image: "/Spicy_Moong_Papad.webp", desc: "Crispy moong dal papad with a kick of black pepper." },
+  { name: "Garlic Infused Papad", price: 6.99, image: "/salty-round-garlic-appalam-papad-without-added-preservative.webp", desc: "Rich garlic flavor infused in traditional papad." },
+  { name: "Cumin Special Papad", price: 5.49, image: "/special_cumin_papad.webp", desc: "Light and digestive cumin jeera papad." },
+  { name: "Punjabi Masala Papad", price: 7.49, image: "/Punjabi_masala_papad.png", desc: "Spicy and thick Punjabi style masala papad." },
+  { name: "Mini Coin Papad", price: 4.99, image: "/coin_papad.jpg", desc: "Bite-sized coin papads perfect for snacking." }
+];
+
+const DEFAULT_HOME_CONTENT = {
+  heroImage: "/moong-dal-papad-1000x1000.webp",
+  heroTitleLine1: "THE CRUNCH",
+  heroTitleLine2: "YOU CRAVE.",
+  heroSubtitle: "Authentic, handmade papads delivered straight to your door. Experience the taste of tradition with LIJO Papad.",
+  storyEyebrow: "Est. 1962 · Bangalore, Karnataka, India",
+  storyHeading: "FOUR GENERATIONS OF THE CRUNCH.",
+  storyText: "LIJO Papad started in a small courtyard kitchen in Bangalore, where our great-grandmother mixed and sun-dried the very first batch by hand. Six decades on, we still roll every papad the same way she taught us — no shortcuts, no factory lines, just a family recipe passed from one generation to the next. Every disc that reaches your door is still hand-pressed, sun-dried, and packed by people who grew up doing exactly that.",
+  stat1Value: "4", stat1Label: "Generations",
+  stat2Value: "100%", stat2Label: "Handmade",
+  stat3Value: "60+", stat3Label: "Years of Tradition"
+};
+
+const DEFAULT_WHOLESALE_FIELDS = [
+  { id: 'contactName', label: 'Full Name', type: 'text', required: true, section: 'Contact Details', order: 0 },
+  { id: 'phone', label: 'Contact Number', type: 'tel', required: true, section: 'Contact Details', order: 1 },
+  { id: 'altPhone', label: 'Alternate / WhatsApp Number', type: 'tel', required: false, section: 'Contact Details', order: 2 },
+  { id: 'email', label: 'Email Address', type: 'email', required: true, section: 'Contact Details', order: 3 },
+  { id: 'businessName', label: 'Business Name', type: 'text', required: true, section: 'Business Details', order: 4 },
+  { id: 'businessType', label: 'Business Type', type: 'select', required: true, section: 'Business Details', order: 5, options: ['Retail Store', 'Supermarket / Grocery Chain', 'Restaurant / Café', 'Distributor', 'Exporter', 'Online Reseller', 'Other'] },
+  { id: 'gst', label: 'GST / Tax ID', type: 'text', required: false, section: 'Business Details', order: 6 },
+  { id: 'city', label: 'City', type: 'text', required: true, section: 'Business Details', order: 7 },
+  { id: 'state', label: 'State', type: 'text', required: true, section: 'Business Details', order: 8 },
+  { id: 'country', label: 'Country', type: 'text', required: true, section: 'Business Details', order: 9 },
+  { id: 'volume', label: 'Expected Monthly Volume (lbs)', type: 'select', required: true, section: 'Order Requirements', order: 10, options: ['10 - 50 lbs', '50 - 200 lbs', '200 - 500 lbs', '500+ lbs'] },
+  { id: 'message', label: 'Additional Requirements', type: 'textarea', required: false, section: 'Order Requirements', order: 11 }
+];
+
+const COUNTRIES = [
+  "India", "United States", "United Kingdom", "Canada", "Australia", "Germany", "France", "United Arab Emirates",
+  "Singapore", "Nepal", "Bangladesh", "Sri Lanka", "Pakistan", "Malaysia", "New Zealand", "Netherlands", "Other"
 ];
 
 export default function App() {
@@ -74,20 +122,6 @@ export default function App() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmittingB2B, setIsSubmittingB2B] = useState(false);
-  const [b2bForm, setB2bForm] = useState({ 
-    contactName: '', 
-    businessName: '', 
-    businessType: '', 
-    email: '', 
-    phone: '', 
-    altPhone: '',
-    city: '', 
-    state: '', 
-    country: '', 
-    gst: '', 
-    volume: '', 
-    message: '' 
-  });
 
   const [registerForm, setRegisterForm] = useState({
     fullName: '',
@@ -102,8 +136,31 @@ export default function App() {
     country: ''
   });
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [checkoutAddress, setCheckoutAddress] = useState({ street: '', city: '', state: '', postalCode: '', country: '' });
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+
+  // Dynamic content — all live-synced from Firestore so admin edits show up instantly
+  const [products, setProducts] = useState(DEFAULT_PRODUCTS.map((p, i) => ({ ...p, id: `default-${i}` })));
+  const [homeContent, setHomeContent] = useState(DEFAULT_HOME_CONTENT);
+  const [wholesaleFields, setWholesaleFields] = useState(DEFAULT_WHOLESALE_FIELDS);
+  const [adminOrders, setAdminOrders] = useState([]);
+  const [adminTab, setAdminTab] = useState('products');
+
+  // Product editor state
+  const [editingProduct, setEditingProduct] = useState(null); // null = not editing, {} = new, {...} = existing
+  const [productImageFile, setProductImageFile] = useState(null);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+
+  // Home content editor state
+  const [homeDraft, setHomeDraft] = useState(DEFAULT_HOME_CONTENT);
+  const [heroImageFile, setHeroImageFile] = useState(null);
+  const [isSavingHome, setIsSavingHome] = useState(false);
+
+  // Wholesale field editor state
+  const [newFieldDraft, setNewFieldDraft] = useState({ label: '', type: 'text', required: false, section: 'Additional Details', options: '' });
+  const [wholesaleFormData, setWholesaleFormData] = useState({});
 
   useEffect(() => {
     // Hash routing logic
@@ -149,9 +206,101 @@ export default function App() {
     loadProfileAddress();
   }, [user]);
 
+  // Live-sync products from Firestore — falls back to defaults if the collection is empty
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, 'products'), (snap) => {
+      if (!snap.empty) {
+        setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+    }, (err) => console.log('Products sync error (using defaults):', err.message));
+    return () => unsub();
+  }, []);
+
+  // Live-sync home page content from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, 'siteContent', 'home'), (snap) => {
+      if (snap.exists()) {
+        const data = { ...DEFAULT_HOME_CONTENT, ...snap.data() };
+        setHomeContent(data);
+        setHomeDraft(data);
+      }
+    }, (err) => console.log('Home content sync error (using defaults):', err.message));
+    return () => unsub();
+  }, []);
+
+  // Live-sync wholesale form field definitions from Firestore
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'wholesaleFields'), orderBy('order')), (snap) => {
+      if (!snap.empty) {
+        setWholesaleFields(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+    }, (err) => console.log('Wholesale fields sync error (using defaults):', err.message));
+    return () => unsub();
+  }, []);
+
+  // Admin-only: live-sync every customer order across all accounts
+  useEffect(() => {
+    if (!user || user.isAnonymous || user.email !== ADMIN_EMAIL) return;
+    const unsub = onSnapshot(query(collectionGroup(db, 'orders'), orderBy('createdAt', 'desc')), (snap) => {
+      setAdminOrders(snap.docs.map(d => ({ id: d.id, path: d.ref.path, ...d.data() })));
+    }, (err) => console.log('Admin orders sync error:', err.message));
+    return () => unsub();
+  }, [user]);
+
+  // Auto-detect country for the registration form via IP geolocation (best-effort, non-blocking)
+  useEffect(() => {
+    if (currentRoute !== 'register' || registerForm.country) return;
+    fetch('https://ipapi.co/json/')
+      .then(res => res.json())
+      .then(data => {
+        if (data?.country_name) {
+          setRegisterForm(prev => prev.country ? prev : { ...prev, country: data.country_name });
+        }
+      })
+      .catch(() => {}); // silent — country dropdown still works manually if this fails
+  }, [currentRoute]);
+
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const getPasswordStrength = (pw) => {
+    if (!pw) return { score: 0, label: '', color: 'bg-gray-200' };
+    let score = 0;
+    if (pw.length >= 8) score++;
+    if (pw.length >= 12) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+    if (score <= 1) return { score: 1, label: 'Weak', color: 'bg-red-500' };
+    if (score <= 3) return { score: 2, label: 'Medium', color: 'bg-yellow-500' };
+    return { score: 3, label: 'Strong', color: 'bg-green-500' };
+  };
+
+  const uploadImage = async (file, folder) => {
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      throw new Error("Image upload isn't configured yet — add your Cloudinary settings to environment variables.");
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', uploadPreset);
+    formData.append('folder', folder);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || 'Image upload failed');
+
+    return data.secure_url;
   };
 
   const navigateTo = (route) => {
@@ -352,8 +501,8 @@ export default function App() {
       showToast("Passwords do not match.", "error");
       return;
     }
-    if (registerForm.password.length < 6) {
-      showToast("Password must be at least 6 characters.", "error");
+    if (registerForm.password.length < 8) {
+      showToast("Password must be at least 8 characters.", "error");
       return;
     }
 
@@ -409,6 +558,128 @@ export default function App() {
     setWishlist([]);
     showToast("Logged out.", "info");
     navigateTo('home');
+  };
+
+  // ---- Admin: Product management ----
+  const saveProduct = async (e) => {
+    e.preventDefault();
+    setIsSavingProduct(true);
+    try {
+      let imageUrl = editingProduct.image || '';
+      if (productImageFile) {
+        imageUrl = await uploadImage(productImageFile, 'products');
+      }
+      const payload = {
+        name: editingProduct.name,
+        price: parseFloat(editingProduct.price),
+        desc: editingProduct.desc || '',
+        image: imageUrl
+      };
+      if (editingProduct.id) {
+        await updateDoc(doc(db, 'products', editingProduct.id), payload);
+        showToast("Product updated.", "success");
+      } else {
+        await addDoc(collection(db, 'products'), payload);
+        showToast("Product added.", "success");
+      }
+      setEditingProduct(null);
+      setProductImageFile(null);
+    } catch (err) {
+      showToast(`Could not save product: ${err.message}`, "error");
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
+
+  const deleteProduct = async (productId) => {
+    if (!window.confirm('Delete this product? This cannot be undone.')) return;
+    try {
+      await deleteDoc(doc(db, 'products', productId));
+      showToast("Product deleted.", "success");
+    } catch (err) {
+      showToast(`Could not delete product: ${err.message}`, "error");
+    }
+  };
+
+  // ---- Admin: Home page content management ----
+  const saveHomeContent = async (e) => {
+    e.preventDefault();
+    setIsSavingHome(true);
+    try {
+      let payload = { ...homeDraft };
+      if (heroImageFile) {
+        payload.heroImage = await uploadImage(heroImageFile, 'site-content');
+      }
+      await setDoc(doc(db, 'siteContent', 'home'), payload);
+      showToast("Home page updated.", "success");
+      setHeroImageFile(null);
+    } catch (err) {
+      showToast(`Could not save home content: ${err.message}`, "error");
+    } finally {
+      setIsSavingHome(false);
+    }
+  };
+
+  // ---- Admin: Wholesale form field management ----
+  const addWholesaleField = async () => {
+    if (!newFieldDraft.label.trim()) {
+      showToast("Field label is required.", "error");
+      return;
+    }
+    try {
+      const fieldId = newFieldDraft.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+      await setDoc(doc(db, 'wholesaleFields', fieldId), {
+        label: newFieldDraft.label.trim(),
+        type: newFieldDraft.type,
+        required: newFieldDraft.required,
+        section: newFieldDraft.section || 'Additional Details',
+        order: wholesaleFields.length,
+        options: newFieldDraft.type === 'select' ? newFieldDraft.options.split(',').map(o => o.trim()).filter(Boolean) : []
+      });
+      showToast("Field added to wholesale form.", "success");
+      setNewFieldDraft({ label: '', type: 'text', required: false, section: 'Additional Details', options: '' });
+    } catch (err) {
+      showToast(`Could not add field: ${err.message}`, "error");
+    }
+  };
+
+  const removeWholesaleField = async (fieldId) => {
+    if (!window.confirm('Remove this field from the wholesale form?')) return;
+    try {
+      await deleteDoc(doc(db, 'wholesaleFields', fieldId));
+      showToast("Field removed.", "success");
+    } catch (err) {
+      showToast(`Could not remove field: ${err.message}`, "error");
+    }
+  };
+
+  const updateOrderStatus = async (orderPath, newStatus) => {
+    try {
+      await updateDoc(doc(db, orderPath), { status: newStatus });
+      showToast("Order status updated.", "success");
+    } catch (err) {
+      showToast(`Could not update order: ${err.message}`, "error");
+    }
+  };
+
+  const handleWholesaleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmittingB2B(true);
+    try {
+      const response = await fetch('/api/wholesale-inquiry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: wholesaleFields, formData: wholesaleFormData })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Submission failed');
+      showToast("Application submitted! Check your email for confirmation.", "success");
+      setWholesaleFormData({});
+    } catch (err) {
+      showToast(`Submission failed: ${err.message}`, "error");
+    } finally {
+      setIsSubmittingB2B(false);
+    }
   };
 
   return (
@@ -487,7 +758,7 @@ export default function App() {
 
       {isCartOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black bg-opacity-50 transition-opacity" onClick={() => setIsCartOpen(false)}></div>
+          <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px] transition-opacity" onClick={() => setIsCartOpen(false)}></div>
           <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-slide-in-right">
             <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
               <h2 className="text-lg font-bold">YOUR CART</h2>
@@ -564,38 +835,37 @@ export default function App() {
 {currentRoute === 'home' && (
   <div className="flex flex-col">
     <section className="relative h-[70vh] bg-gray-900 flex items-center justify-center text-white">
-      {/* Update the src to your local file path */}
       <img 
-        src="/moong-dal-papad-1000x1000.webp" 
-        alt="Moong Dal Papad" 
+        src={homeContent.heroImage} 
+        alt="Hero" 
         className="absolute inset-0 w-full h-full object-cover opacity-40" 
       />
       <div className="relative z-10 text-center px-4">
-        <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4">THE CRUNCH<br/>YOU CRAVE.</h1>
-        <p className="text-lg md:text-xl font-light mb-8 max-w-2xl mx-auto">Authentic, handmade papads delivered straight to your door. Experience the taste of tradition with LIJO Papad.</p>
+        <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4">{homeContent.heroTitleLine1}<br/>{homeContent.heroTitleLine2}</h1>
+        <p className="text-lg md:text-xl font-light mb-8 max-w-2xl mx-auto">{homeContent.heroSubtitle}</p>
         <button onClick={() => navigateTo('shop')} className="bg-white text-black px-8 py-4 rounded-full font-bold tracking-widest hover:bg-gray-100 transition-transform transform hover:scale-105 shadow-xl">SHOP NOW</button>
       </div>
     </section>
 
     {/* Our Story */}
     <section className="max-w-5xl mx-auto px-4 py-20 sm:px-6 lg:px-8 text-center">
-      <p className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-4">Est. 1962 &middot; Bangalore, Karnataka, India</p>
-      <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-6">FOUR GENERATIONS OF THE CRUNCH.</h2>
+      <p className="text-xs font-bold tracking-widest text-gray-400 uppercase mb-4">{homeContent.storyEyebrow}</p>
+      <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-6">{homeContent.storyHeading}</h2>
       <p className="text-gray-500 text-lg leading-relaxed max-w-3xl mx-auto">
-        LIJO Papad started in a small courtyard kitchen in Bangalore, where our great-grandmother mixed and sun-dried the very first batch by hand. Six decades on, we still roll every papad the same way she taught us — no shortcuts, no factory lines, just a family recipe passed from one generation to the next. Every disc that reaches your door is still hand-pressed, sun-dried, and packed by people who grew up doing exactly that.
+        {homeContent.storyText}
       </p>
       <div className="grid grid-cols-3 gap-8 mt-14 max-w-2xl mx-auto">
         <div>
-          <p className="text-3xl md:text-4xl font-black tracking-tight">4</p>
-          <p className="text-sm text-gray-500 mt-1">Generations</p>
+          <p className="text-3xl md:text-4xl font-black tracking-tight">{homeContent.stat1Value}</p>
+          <p className="text-sm text-gray-500 mt-1">{homeContent.stat1Label}</p>
         </div>
         <div>
-          <p className="text-3xl md:text-4xl font-black tracking-tight">100%</p>
-          <p className="text-sm text-gray-500 mt-1">Handmade</p>
+          <p className="text-3xl md:text-4xl font-black tracking-tight">{homeContent.stat2Value}</p>
+          <p className="text-sm text-gray-500 mt-1">{homeContent.stat2Label}</p>
         </div>
         <div>
-          <p className="text-3xl md:text-4xl font-black tracking-tight">60+</p>
-          <p className="text-sm text-gray-500 mt-1">Years of Tradition</p>
+          <p className="text-3xl md:text-4xl font-black tracking-tight">{homeContent.stat3Value}</p>
+          <p className="text-sm text-gray-500 mt-1">{homeContent.stat3Label}</p>
         </div>
       </div>
     </section>
@@ -623,7 +893,7 @@ export default function App() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(product => (
+              {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).map(product => (
                 <div key={product.id} className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100 flex flex-col">
                   <div className="aspect-w-4 aspect-h-3 bg-gray-200 overflow-hidden">
                     <img src={product.image} alt={product.name} className="w-full h-64 object-cover object-center group-hover:scale-105 transition-transform duration-500" />
@@ -649,7 +919,7 @@ export default function App() {
                   </div>
                 </div>
               ))}
-              {PRODUCTS.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
+              {products.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())).length === 0 && (
                   <div className="col-span-full text-center py-12 text-gray-500">
                       No products found matching "{searchQuery}"
                   </div>
@@ -666,115 +936,56 @@ export default function App() {
               <p className="text-gray-500 text-lg">Stock LIJO Papad in your retail store, restaurant, or distribution network. Tell us about your business and we'll get back to you with wholesale pricing.</p>
             </div>
             
-            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-10" onSubmit={async (e) => {
-              e.preventDefault();
-              setIsSubmittingB2B(true);
-              try {
-                const response = await fetch('/api/wholesale-inquiry', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(b2bForm)
-                });
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error || 'Submission failed');
-                showToast("Application submitted! Check your email for confirmation.", "success");
-                setB2bForm({ contactName: '', businessName: '', businessType: '', email: '', phone: '', altPhone: '', city: '', state: '', country: '', gst: '', volume: '', message: '' });
-              } catch (err) {
-                showToast(`Submission failed: ${err.message}`, "error");
-              } finally {
-                setIsSubmittingB2B(false);
-              }
-            }}>
-
-              {/* Contact Details */}
-              <div>
-                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Contact Details</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-                    <input required type="text" value={b2bForm.contactName} onChange={e => setB2bForm({...b2bForm, contactName: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Contact Number</label>
-                      <input required type="tel" placeholder="+91 98765 43210" value={b2bForm.phone} onChange={e => setB2bForm({...b2bForm, phone: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Alternate / WhatsApp Number</label>
-                      <input type="tel" placeholder="Optional" value={b2bForm.altPhone} onChange={e => setB2bForm({...b2bForm, altPhone: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-                    <input required type="email" value={b2bForm.email} onChange={e => setB2bForm({...b2bForm, email: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Business Details */}
-              <div>
-                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Business Details</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
-                    <input required type="text" value={b2bForm.businessName} onChange={e => setB2bForm({...b2bForm, businessName: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Business Type</label>
-                      <select required value={b2bForm.businessType} onChange={e => setB2bForm({...b2bForm, businessType: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
-                        <option value="">Select an option</option>
-                        <option value="retailer">Retail Store</option>
-                        <option value="supermarket">Supermarket / Grocery Chain</option>
-                        <option value="restaurant">Restaurant / Café</option>
-                        <option value="distributor">Distributor</option>
-                        <option value="exporter">Exporter</option>
-                        <option value="online">Online Reseller</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">GST / Tax ID <span className="text-gray-400 font-normal">(optional)</span></label>
-                      <input type="text" value={b2bForm.gst} onChange={e => setB2bForm({...b2bForm, gst: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
-                      <input required type="text" value={b2bForm.city} onChange={e => setB2bForm({...b2bForm, city: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
-                      <input required type="text" value={b2bForm.state} onChange={e => setB2bForm({...b2bForm, state: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-                      <input required type="text" value={b2bForm.country} onChange={e => setB2bForm({...b2bForm, country: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
-                    </div>
+            <form className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-10" onSubmit={handleWholesaleSubmit}>
+              {Object.entries(
+                wholesaleFields.reduce((sections, field) => {
+                  const section = field.section || 'Additional Details';
+                  if (!sections[section]) sections[section] = [];
+                  sections[section].push(field);
+                  return sections;
+                }, {})
+              ).map(([sectionName, fields]) => (
+                <div key={sectionName}>
+                  <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">{sectionName}</h3>
+                  <div className="space-y-6">
+                    {fields.map(field => (
+                      <div key={field.id}>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          {field.label} {!field.required && <span className="text-gray-400 font-normal">(optional)</span>}
+                        </label>
+                        {field.type === 'select' ? (
+                          <select
+                            required={field.required}
+                            value={wholesaleFormData[field.id] || ''}
+                            onChange={e => setWholesaleFormData({ ...wholesaleFormData, [field.id]: e.target.value })}
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white"
+                          >
+                            <option value="">Select an option</option>
+                            {(field.options || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                          </select>
+                        ) : field.type === 'textarea' ? (
+                          <textarea
+                            rows="4"
+                            required={field.required}
+                            value={wholesaleFormData[field.id] || ''}
+                            onChange={e => setWholesaleFormData({ ...wholesaleFormData, [field.id]: e.target.value })}
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all resize-none"
+                          />
+                        ) : (
+                          <input
+                            type={field.type}
+                            required={field.required}
+                            placeholder={field.type === 'tel' ? '+91 98765 43210' : ''}
+                            value={wholesaleFormData[field.id] || ''}
+                            onChange={e => setWholesaleFormData({ ...wholesaleFormData, [field.id]: e.target.value })}
+                            className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all"
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-
-              {/* Order Requirements */}
-              <div>
-                <h3 className="text-sm font-black tracking-widest uppercase text-gray-400 mb-4">Order Requirements</h3>
-                <div className="space-y-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Expected Monthly Volume (lbs)</label>
-                    <select required value={b2bForm.volume} onChange={e => setB2bForm({...b2bForm, volume: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
-                      <option value="">Select an option</option>
-                      <option value="10-50">10 - 50 lbs</option>
-                      <option value="50-200">50 - 200 lbs</option>
-                      <option value="200-500">200 - 500 lbs</option>
-                      <option value="500+">500+ lbs</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Additional Requirements <span className="text-gray-400 font-normal">(flavors, packaging, delivery frequency, etc.)</span></label>
-                    <textarea rows="4" value={b2bForm.message} onChange={e => setB2bForm({...b2bForm, message: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all resize-none" />
-                  </div>
-                </div>
-              </div>
+              ))}
 
               <button type="submit" disabled={isSubmittingB2B} className="w-full bg-black text-white py-4 rounded-lg font-bold tracking-widest hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                 {isSubmittingB2B ? 'SUBMITTING...' : 'SUBMIT APPLICATION'}
@@ -782,6 +993,7 @@ export default function App() {
             </form>
           </div>
         )}
+
 
         {/* Register Route */}
         {currentRoute === 'register' && (
@@ -835,7 +1047,11 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-                    <input required type="text" value={registerForm.country} onChange={e => setRegisterForm({...registerForm, country: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    <select required value={registerForm.country} onChange={e => setRegisterForm({...registerForm, country: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all bg-white">
+                      <option value="">Select your country</option>
+                      {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1.5">Auto-detected based on your location — change it if it's wrong.</p>
                   </div>
                 </div>
               </div>
@@ -845,11 +1061,34 @@ export default function App() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-                    <input required type="password" minLength={6} value={registerForm.password} onChange={e => setRegisterForm({...registerForm, password: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    <div className="relative">
+                      <input required type={showRegPassword ? 'text' : 'password'} minLength={8} value={registerForm.password} onChange={e => setRegisterForm({...registerForm, password: e.target.value})} className="w-full px-4 py-3 pr-11 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                      <button type="button" onClick={() => setShowRegPassword(!showRegPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+                        {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {registerForm.password && (() => {
+                      const strength = getPasswordStrength(registerForm.password);
+                      return (
+                        <div className="mt-2">
+                          <div className="flex gap-1">
+                            {[1, 2, 3].map(i => (
+                              <div key={i} className={`h-1.5 flex-1 rounded-full ${i <= strength.score ? strength.color : 'bg-gray-200'}`}></div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">{strength.label} — at least 8 characters, mix in a number, capital letter, or symbol for a stronger password.</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
-                    <input required type="password" minLength={6} value={registerForm.confirmPassword} onChange={e => setRegisterForm({...registerForm, confirmPassword: e.target.value})} className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                    <div className="relative">
+                      <input required type={showRegConfirmPassword ? 'text' : 'password'} minLength={8} value={registerForm.confirmPassword} onChange={e => setRegisterForm({...registerForm, confirmPassword: e.target.value})} className="w-full px-4 py-3 pr-11 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black focus:border-transparent outline-none transition-all" />
+                      <button type="button" onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700">
+                        {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -953,17 +1192,267 @@ export default function App() {
               <ShieldCheck className="w-8 h-8 text-blue-600" />
               <h2 className="text-3xl font-black tracking-tight">STORE ADMINISTRATION</h2>
             </div>
-            
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-6 border-b border-gray-100 bg-gray-50">
-                <h3 className="font-bold text-lg">Recent Orders</h3>
-              </div>
-              <div className="p-8 text-center text-gray-500">
-                <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>Database connected successfully.</p>
-                <p className="text-sm mt-2">New orders will appear here once placed by authenticated users.</p>
-              </div>
+
+            {/* Tabs */}
+            <div className="flex flex-wrap gap-2 mb-8 border-b border-gray-200">
+              {[
+                { id: 'products', label: 'Products' },
+                { id: 'orders', label: 'Orders' },
+                { id: 'home', label: 'Home Page' },
+                { id: 'wholesale', label: 'Wholesale Form' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setAdminTab(tab.id)}
+                  className={`px-4 py-3 text-sm font-bold tracking-wide border-b-2 transition-colors ${adminTab === tab.id ? 'border-black text-black' : 'border-transparent text-gray-400 hover:text-gray-700'}`}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
+
+            {/* ---- PRODUCTS TAB ---- */}
+            {adminTab === 'products' && (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold">Manage Products</h3>
+                  <button onClick={() => { setEditingProduct({ name: '', price: '', desc: '', image: '' }); setProductImageFile(null); }} className="flex items-center gap-2 bg-black text-white px-4 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-800 transition-colors">
+                    <Plus className="w-4 h-4" /> Add Product
+                  </button>
+                </div>
+
+                {editingProduct && (
+                  <form onSubmit={saveProduct} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-6 space-y-4">
+                    <h4 className="font-bold text-lg">{editingProduct.id ? 'Edit Product' : 'New Product'}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Product Name</label>
+                        <input required type="text" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Price ($)</label>
+                        <input required type="number" step="0.01" min="0" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                      <textarea rows="2" value={editingProduct.desc} onChange={e => setEditingProduct({...editingProduct, desc: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none resize-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
+                      <div className="flex items-center gap-4">
+                        {(productImageFile ? URL.createObjectURL(productImageFile) : editingProduct.image) && (
+                          <img src={productImageFile ? URL.createObjectURL(productImageFile) : editingProduct.image} alt="Preview" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                        )}
+                        <label className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm font-medium">
+                          <Upload className="w-4 h-4" /> {productImageFile ? productImageFile.name : 'Upload Image'}
+                          <input type="file" accept="image/*" className="hidden" onChange={e => setProductImageFile(e.target.files[0])} />
+                        </label>
+                      </div>
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button type="submit" disabled={isSavingProduct} className="bg-black text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-800 transition-colors disabled:opacity-50">
+                        {isSavingProduct ? 'Saving...' : 'Save Product'}
+                      </button>
+                      <button type="button" onClick={() => { setEditingProduct(null); setProductImageFile(null); }} className="px-6 py-2.5 rounded-lg font-bold text-sm border border-gray-300 hover:bg-gray-50 transition-colors">
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {products.map(product => (
+                    <div key={product.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
+                      <img src={product.image} alt={product.name} className="w-full h-40 object-cover" />
+                      <div className="p-4 flex-1 flex flex-col">
+                        <h4 className="font-bold">{product.name}</h4>
+                        <p className="text-sm text-gray-500 mt-1 flex-1">${product.price}</p>
+                        <div className="flex gap-2 mt-3">
+                          <button onClick={() => { setEditingProduct(product); setProductImageFile(null); }} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-xs font-bold hover:bg-gray-50 transition-colors">
+                            <Pencil className="w-3.5 h-3.5" /> Edit
+                          </button>
+                          <button onClick={() => deleteProduct(product.id)} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 border border-red-200 text-red-600 rounded-lg text-xs font-bold hover:bg-red-50 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ---- ORDERS TAB ---- */}
+            {adminTab === 'orders' && (
+              <div>
+                <h3 className="text-xl font-bold mb-6">Customer Orders</h3>
+                {adminOrders.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center text-gray-500">
+                    <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                    <p>No orders yet. New orders will appear here as they're placed.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {adminOrders.map(order => (
+                      <div key={order.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                        <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+                          <div>
+                            <p className="font-bold">{order.email}</p>
+                            <p className="text-xs text-gray-400 mt-1">Order ID: {order.id}</p>
+                            {order.paymentId && <p className="text-xs text-gray-400">Payment ID: {order.paymentId}</p>}
+                            <p className="text-xs text-gray-400">Mode of Payment: {order.paymentId ? 'Razorpay (Online)' : 'N/A'}</p>
+                          </div>
+                          <select value={order.status || 'pending'} onChange={e => updateOrderStatus(order.path, e.target.value)} className="px-3 py-2 rounded-lg border border-gray-300 text-sm font-medium bg-white">
+                            <option value="pending">Pending</option>
+                            <option value="paid">Paid</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </div>
+                        <div className="border-t border-gray-100 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Items</p>
+                            {(order.items || []).map((item, i) => (
+                              <p key={i} className="text-sm text-gray-600">{item.name} &times; {item.qty} — ${(item.price * item.qty).toFixed(2)}</p>
+                            ))}
+                            <p className="text-sm font-bold mt-2">Total: ${order.total?.toFixed ? order.total.toFixed(2) : order.total}</p>
+                          </div>
+                          {order.shippingAddress && (
+                            <div>
+                              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Shipping Address</p>
+                              <p className="text-sm text-gray-600">{order.shippingAddress.street}<br/>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.postalCode}<br/>{order.shippingAddress.country}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ---- HOME PAGE TAB ---- */}
+            {adminTab === 'home' && (
+              <form onSubmit={saveHomeContent} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6 max-w-2xl">
+                <h3 className="text-xl font-bold">Edit Home Page</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Hero Background Image</label>
+                  <div className="flex items-center gap-4">
+                    <img src={heroImageFile ? URL.createObjectURL(heroImageFile) : homeDraft.heroImage} alt="Hero preview" className="w-24 h-16 object-cover rounded-lg border border-gray-200" />
+                    <label className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm font-medium">
+                      <Upload className="w-4 h-4" /> {heroImageFile ? heroImageFile.name : 'Upload New Image'}
+                      <input type="file" accept="image/*" className="hidden" onChange={e => setHeroImageFile(e.target.files[0])} />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title — Line 1</label>
+                    <input type="text" value={homeDraft.heroTitleLine1} onChange={e => setHomeDraft({...homeDraft, heroTitleLine1: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hero Title — Line 2</label>
+                    <input type="text" value={homeDraft.heroTitleLine2} onChange={e => setHomeDraft({...homeDraft, heroTitleLine2: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Hero Subtitle</label>
+                  <textarea rows="2" value={homeDraft.heroSubtitle} onChange={e => setHomeDraft({...homeDraft, heroSubtitle: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none resize-none" />
+                </div>
+
+                <hr className="border-gray-100" />
+                <h4 className="font-bold text-sm uppercase tracking-wide text-gray-400">Our Story Section</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Eyebrow Text</label>
+                  <input type="text" value={homeDraft.storyEyebrow} onChange={e => setHomeDraft({...homeDraft, storyEyebrow: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Heading</label>
+                  <input type="text" value={homeDraft.storyHeading} onChange={e => setHomeDraft({...homeDraft, storyHeading: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Story Text</label>
+                  <textarea rows="4" value={homeDraft.storyText} onChange={e => setHomeDraft({...homeDraft, storyText: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none resize-none" />
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  {[1, 2, 3].map(n => (
+                    <div key={n}>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Stat {n}</label>
+                      <input type="text" placeholder="Value" value={homeDraft[`stat${n}Value`]} onChange={e => setHomeDraft({...homeDraft, [`stat${n}Value`]: e.target.value})} className="w-full px-3 py-2 mb-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none text-sm" />
+                      <input type="text" placeholder="Label" value={homeDraft[`stat${n}Label`]} onChange={e => setHomeDraft({...homeDraft, [`stat${n}Label`]: e.target.value})} className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none text-sm" />
+                    </div>
+                  ))}
+                </div>
+
+                <button type="submit" disabled={isSavingHome} className="bg-black text-white px-6 py-3 rounded-lg font-bold text-sm hover:bg-gray-800 transition-colors disabled:opacity-50">
+                  {isSavingHome ? 'Saving...' : 'Save Home Page'}
+                </button>
+              </form>
+            )}
+
+            {/* ---- WHOLESALE FORM TAB ---- */}
+            {adminTab === 'wholesale' && (
+              <div>
+                <h3 className="text-xl font-bold mb-6">Wholesale Form Fields</h3>
+
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 mb-6">
+                  {wholesaleFields.map(field => (
+                    <div key={field.id} className="p-4 flex justify-between items-center">
+                      <div>
+                        <p className="font-bold text-sm">{field.label} {field.required && <span className="text-red-500">*</span>}</p>
+                        <p className="text-xs text-gray-400">{field.section} &middot; {field.type}</p>
+                      </div>
+                      <button onClick={() => removeWholesaleField(field.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <h4 className="font-bold mb-4">Add New Field</h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Field Label</label>
+                      <input type="text" value={newFieldDraft.label} onChange={e => setNewFieldDraft({...newFieldDraft, label: e.target.value})} placeholder="e.g. Preferred Delivery Day" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Field Type</label>
+                      <select value={newFieldDraft.type} onChange={e => setNewFieldDraft({...newFieldDraft, type: e.target.value})} className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none bg-white">
+                        <option value="text">Text</option>
+                        <option value="email">Email</option>
+                        <option value="tel">Phone</option>
+                        <option value="textarea">Long Text</option>
+                        <option value="select">Dropdown</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+                      <input type="text" value={newFieldDraft.section} onChange={e => setNewFieldDraft({...newFieldDraft, section: e.target.value})} placeholder="e.g. Order Requirements" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                    </div>
+                    <div className="flex items-end pb-2.5">
+                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <input type="checkbox" checked={newFieldDraft.required} onChange={e => setNewFieldDraft({...newFieldDraft, required: e.target.checked})} className="w-4 h-4" />
+                        Required field
+                      </label>
+                    </div>
+                  </div>
+                  {newFieldDraft.type === 'select' && (
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Dropdown Options (comma-separated)</label>
+                      <input type="text" value={newFieldDraft.options} onChange={e => setNewFieldDraft({...newFieldDraft, options: e.target.value})} placeholder="e.g. Weekly, Bi-weekly, Monthly" className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-black outline-none" />
+                    </div>
+                  )}
+                  <button onClick={addWholesaleField} className="bg-black text-white px-6 py-2.5 rounded-lg font-bold text-sm hover:bg-gray-800 transition-colors">
+                    Add Field
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
